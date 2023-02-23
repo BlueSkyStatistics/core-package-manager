@@ -39,6 +39,7 @@ class LocalPackage {
         this.removable = removable
         this.version = '0.0.0'
 
+        this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
 
 
         // this.type = packageJson.artifactType
@@ -58,22 +59,21 @@ class LocalPackage {
         }
     }
 
-    getNonAsarVersion = () => {
-        try {
-            const pkg = require(path.join(this.path, 'package.json'))
-            this.version = pkg.version
-            this.description = pkg.productName // question: why not pkg.description?
-            delete require.cache[path.join(this.path, 'package.json')]
-        } catch (err) {
-            console.warn(err)
-            this.version = '0.0.0'
-        }
-    }
+    // getNonAsarVersion = () => {
+    //     try {
+    //         const pkg = require(path.join(this.path, 'package.json'))
+    //         this.version = pkg.version
+    //         this.description = pkg.productName // question: why not pkg.description?
+    //         delete require.cache[path.join(this.path, 'package.json')]
+    //     } catch (err) {
+    //         console.warn(err)
+    //         this.version = '0.0.0'
+    //     }
+    // }
 
     typeMapping = {
-        // question: what is the difference between asar and non-asar?
         asar: this.getAsarVersion,
-        local: this.getNonAsarVersion
+        local: this.getAsarVersion
     }
 
     getLocalVersion() {
@@ -89,9 +89,9 @@ class LocalPackage {
             artifactType, sourceType, remote, update, removable}
     }
 
-    get realImportPath() {
-        return sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
-    }
+    // get realImportPath() {
+    //     return sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
+    // }
 
     loadCss = url => {
         const el = document.createElement("link")
@@ -119,7 +119,6 @@ class LocalPackage {
     }
 
     importAllFromPackage() {
-        // question: why do we force import devImportPath?
         console.log(sessionStore.get("appMode"))
         try {
             console.log(`Importing from ${this.realImportPath}`)

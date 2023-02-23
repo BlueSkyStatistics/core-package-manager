@@ -17,7 +17,7 @@ class DialogsPackage extends LocalPackage {
         } catch(ex) {
             importPath = this.devImportPath
             packageNav = require(importPath).nav
-            console.log(`Importing from ${importPath}`)
+            console.warn(`Importing from ${importPath}`)
         }
         const pathAddon = importPath.replace("nav.js", "")
 

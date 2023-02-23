@@ -27,7 +27,6 @@ class RemotePackage {
         this._path = path
         this.path = Render(this._path, {
             locals: this.userDataPath,
-            // appRoot: this.appRoot // question: why no appRoot here?
         })
         this._importpath = importpath
         // this.importPath = Sqrl.Render(this._importpath, {
@@ -53,10 +52,6 @@ class RemotePackage {
 
         this.details = {}
         this.versions = []
-
-        // question what for?:
-        this.BSkyRequirements = undefined
-        this.PackageRequirements = undefined
     }
 
     checkVersionAndUpdateFile = (pkg, filepath) => {
@@ -157,7 +152,6 @@ class RemotePackage {
     getRemoteDetails = async versionToUpdate => {
         await this.typeMapping[this.storage][this.sourceType](versionToUpdate)
     }
-
 
 }
 

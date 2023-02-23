@@ -24,7 +24,6 @@ class PackageManager {
         // ), 'utf8'))
     }
     constructor() {
-        // sessionStore.delete('modules') // question: why delete if we set then?
         ipcRenderer.invoke('listInstalled')
         this.modules = PackageManager.getModulesMeta()
         sessionStore.set('modules', this.modules)
@@ -60,11 +59,8 @@ class PackageManager {
                 restartNeeded = _localPackage.copyFromInstaller()
             }
             if (!sessionStore.get("restartNeeded") && restartNeeded) {
-                // question: why delete if we set then?
                 sessionStore.delete("restartNeeded")
                 sessionStore.set("restartNeeded", true)
-
-                // question: why we exit here?
                 return
             }
         }

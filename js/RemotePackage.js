@@ -1,7 +1,7 @@
 const axios = require('axios')
 const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
 const {ipcRenderer} = require('electron')
-const Sqrl = require('squirrelly')
+const {Render} = require('squirrelly')
 const {writeFileSync, copyFileSync, unlink} = require('original-fs')
 
 const satisfyVersion = pkgName => {
@@ -25,7 +25,7 @@ class RemotePackage {
     constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
         this.name = name
         this._path = path
-        this.path = Sqrl.Render(this._path, {
+        this.path = Render(this._path, {
             locals: this.userDataPath,
             // appRoot: this.appRoot // question: why no appRoot here?
         })
@@ -44,7 +44,7 @@ class RemotePackage {
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.remote = remote.trim()
-        this.remotePath = Sqrl.Render(this.urlMapped[this.storage], {repo: this.remote})
+        this.remotePath = Render(this.urlMapped[this.storage], {repo: this.remote})
 
         this.update = update
         this.removable = removable
@@ -97,7 +97,7 @@ class RemotePackage {
         // question: why outerthis??
         try {
             const resp = await fetch(this.remotePath)
-            const data = resp.json()
+            const data = await resp.json()
             this.versions = data.map(i => ({
                 [i.tag_name]: i
             }))
@@ -106,9 +106,9 @@ class RemotePackage {
                 semverMaxSatisfying(this.versions.map(i => Object.keys(i)[0]), "*") :
                 versionToUpdate
 
-            this.details = this.versions.find(i => Object.keys(i) === this.version)[this.version]
+            this.details = this.versions.find(i => Object.keys(i)[0] === this.version)[this.version]
         } catch (e) {
-            console.log('gitReleaseVersion error', e)
+            console.warn('gitReleaseVersion error', e)
             this.version = '0.0.0'
             this.details = {}
         }
@@ -122,8 +122,8 @@ class RemotePackage {
             const pkg = require(path.join(asarPath, 'package.json'))
             return this.checkVersionAndUpdateFile(pkg, asarPath)
         } catch (e) {
-            console.log({fileUrl, asarPath})
-            console.log(e)
+            console.warn({fileUrl, asarPath})
+            console.warn(e)
         }
         return false
     }
@@ -155,7 +155,7 @@ class RemotePackage {
     installPackage = async () => await this.installType[this.storage][this.artifactType]()
 
     getRemoteDetails = async versionToUpdate => {
-        await this.typeMapping[this.storage][this.artifactType](versionToUpdate)
+        await this.typeMapping[this.storage][this.sourceType](versionToUpdate)
     }
 
 

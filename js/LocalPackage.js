@@ -1,6 +1,6 @@
 const Store = require('electron-store')
 const sessionStore = new Store({name: 'constants'})
-const Sqrl = require('squirrelly')
+const {Render} = require('squirrelly')
 const path = require('path')
 const { existsSync, unlinkSync, copyFileSync } = require('original-fs')
 
@@ -17,17 +17,17 @@ class LocalPackage {
     constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
         this.name = name
         this._path = path
-        this.path = Sqrl.Render(this._path, {
-            locals: this.userDataPath,
-            appRoot: this.appRoot
+        this.path = Render(this._path, {
+            'locals': this.userDataPath,
+            'appRoot': this.appRoot
         })
         this._importpath = importpath
-        this.importPath = Sqrl.Render(this._importpath, {
+        this.importPath = Render(this._importpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
         })
         this._devimportpath = devimportpath
-        this.devImportPath = Sqrl.Render(this._devimportpath, {
+        this.devImportPath = Render(this._devimportpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
         })
@@ -53,7 +53,7 @@ class LocalPackage {
             this.description = pkg.productName // question: why not pkg.description?
             delete require.cache[path.join(this.path, 'package.json')]
         } catch (err) {
-            console.log(err)
+            console.warn(err)
             this.version = '0.0.0'
         }
     }
@@ -65,7 +65,7 @@ class LocalPackage {
             this.description = pkg.productName // question: why not pkg.description?
             delete require.cache[path.join(this.path, 'package.json')]
         } catch (err) {
-            console.log(err)
+            console.warn(err)
             this.version = '0.0.0'
         }
     }
@@ -145,7 +145,7 @@ class LocalPackage {
     }
 
     get installerPath() {
-        return Sqrl.Render(this._path, {
+        return Render(this._path, {
             locals: path.join(this.appRoot.replace("app.asar", ""), 'package', 'asar')
         })
     }

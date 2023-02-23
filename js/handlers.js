@@ -13,17 +13,35 @@ const packageUpdateSuccessMessage = {
     `
 }
 
-function updateModule(manager, event) {
-    const versionToUpdate = $(event.target).siblings()[0].value
-    sessionStore.get("modules", [])[event.target.dataset.moduleType].forEach(module => {
-        if (module.name === event.target.dataset.module) {
-            manager.updateOnePackage(module, versionToUpdate).then(restartNeeded => {
-                restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
-            })
-        }
-    })
+const packageUpdateVersionInstalledMessage = {
+    icon: 'fa fa-check',
+    message: 'You have this version installed'
 }
 
-module.exports = updateModule
+const updateModule = async (manager, module, version) => {
+    const restartNeeded = await manager.updateOnePackage(module, version)
+    restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
+}
+
+const findModule = (moduleType, moduleName) =>
+    sessionStore.get("modules", {})[moduleType]?.find(
+        m => m.name === moduleName
+    )
+
+
+const handleMarketUpdateClick = async (manager, el) => {
+    const {moduleType, module: moduleName, version: currentVersion} = el.dataset
+    const selectedVersion = $(el).siblings('select.versionsSelect').val()
+    if (selectedVersion === currentVersion) {
+        new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+    } else {
+        const module = findModule(moduleType, moduleName)
+        await updateModule(manager, module, selectedVersion)
+    }
+}
+
+module.exports = {
+    handleMarketUpdateClick
+}
 
 

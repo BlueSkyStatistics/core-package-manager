@@ -8,6 +8,7 @@ class DialogsPackage extends LocalPackage {
     }
 
     _getNav() {
+        // question: why to try \ except when we have realImportPath
         let importPath = this.realImportPath
         let packageNav
         try {
@@ -28,6 +29,7 @@ class DialogsPackage extends LocalPackage {
         }
         // var navList = []
         const navList = packageNavList.map(p => {
+            console.log('making nav', p)
             p.buttons = p.buttons.map(b => {
                 if (typeof b === 'object') {
                     if (b.children === undefined) {
@@ -35,10 +37,11 @@ class DialogsPackage extends LocalPackage {
                     } else {
                         b.children = b.children.map(c => path.join(pathAddon, c))
                     }
+                    return b
                 } else {
                     return path.join(pathAddon, b)
                 }
-            })
+            }).filter(b => b !== null)
             delete require.cache[importPath]
             return p
 

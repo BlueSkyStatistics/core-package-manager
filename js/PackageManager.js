@@ -1,34 +1,26 @@
-const fs = require('fs')
-const path = require('path')
 const ipcRenderer = require('electron').ipcRenderer
-
-const Store = require('electron-store')
-const LocalPackage = require("./LocalPackage");
-const RemotePackage = require("./RemotePackage");
-const sessionStore = new Store({name: 'constants'})
-// const remotePackage = require('./remotePackage');
-// const localPackage = require('./localPackage');
-
+const LocalPackage = require("./LocalPackage")
+const RemotePackage = require("./RemotePackage")
+const {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
 const gt = require('semver').gt
 
-ipcRenderer.on('versionUpdateError', (event, message) => {
-    ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
-})
+// ipcRenderer.on('versionUpdateError', (event, message) => {
+//     ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
+// })
+
+const {sessionStore} = global
 
 class PackageManager {
-    static getModulesMeta() {
-        return JSON.parse(fs.readFileSync(store.get("modulespath"), 'utf8'))
-        // return JSON.parse(fs.readFileSync(path.join(
-        //     sessionStore.get("appRoot").replace("app.asar", ""),
-        //     "modules.json"
-        // ), 'utf8'))
-    }
     constructor() {
         ipcRenderer.invoke('listInstalled')
-        this.modules = PackageManager.getModulesMeta()
-        sessionStore.set('modules', this.modules)
+        this.modules = sessionStore.get('modules')
     }
 
+    importInit() {
+        this.modules.init?.forEach(i =>
+            new LocalPackage(i).importAllFromPackage()
+        )
+    }
 
     importPackages() {
         // To avoid async and be prepared for app launch we import whatever we have
@@ -129,6 +121,23 @@ class PackageManager {
         const dialogModulesVersions = await Promise.all(modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
         return [...coreModulesVersions, ...dialogModulesVersions]
     }
+
+    findModule = (moduleType, moduleName) =>
+        this.modules[moduleType]?.find(
+            m => m.name === moduleName
+        )
+
+    handleMarketUpdateClick = async el => {
+        const {moduleType, module: moduleName, version: currentVersion} = el.dataset
+        const selectedVersion = $(el).siblings('select.versionsSelect').val()
+        if (selectedVersion === currentVersion) {
+            new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+        } else {
+            const module = this.findModule(moduleType, moduleName)
+            await updateModule(this, module, selectedVersion)
+        }
+    }
+
 }
 
 

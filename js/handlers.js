@@ -23,25 +23,10 @@ const updateModule = async (manager, module, version) => {
     restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
 }
 
-const findModule = (moduleType, moduleName) =>
-    sessionStore.get("modules", {})[moduleType]?.find(
-        m => m.name === moduleName
-    )
-
-
-const handleMarketUpdateClick = async (manager, el) => {
-    const {moduleType, module: moduleName, version: currentVersion} = el.dataset
-    const selectedVersion = $(el).siblings('select.versionsSelect').val()
-    if (selectedVersion === currentVersion) {
-        new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
-    } else {
-        const module = findModule(moduleType, moduleName)
-        await updateModule(manager, module, selectedVersion)
-    }
-}
 
 module.exports = {
-    handleMarketUpdateClick
+    packageUpdateVersionInstalledMessage,
+    updateModule
 }
 
 

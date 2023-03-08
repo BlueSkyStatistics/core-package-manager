@@ -3,6 +3,8 @@ const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer
 const {ipcRenderer} = require('electron')
 const {Render} = require('squirrelly')
 const {writeFileSync, copyFileSync, unlink} = require('original-fs')
+const {normalize, join} = require("path")
+const {sessionStore} = global
 
 const satisfyVersion = pkgName => {
     const installedPackages = sessionStore.get("installedPackages")
@@ -14,20 +16,14 @@ const satisfyVersion = pkgName => {
 }
 
 class RemotePackage {
-    get userDataPath() {
-        return sessionStore.get("userData")
-    }
-
-    get appRoot() {
-        return sessionStore.get("appRoot")
-    }
-
     constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
+        this.userDataPath = sessionStore.get("userData")
+        this.appRoot = sessionStore.get("appRoot")
         this.name = name
         this._path = path
-        this.path = Render(this._path, {
+        this.path = normalize(Render(this._path, {
             locals: this.userDataPath,
-        })
+        }))
         this._importpath = importpath
         // this.importPath = Sqrl.Render(this._importpath, {
         //     locals: this.userDataPath,
@@ -43,7 +39,7 @@ class RemotePackage {
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.remote = remote.trim()
-        this.remotePath = Render(this.urlMapped[this.storage], {repo: this.remote})
+        this.remotePath = normalize(Render(this.urlMapped[this.storage], {repo: this.remote}))
 
         this.update = update
         this.removable = removable
@@ -71,20 +67,20 @@ class RemotePackage {
         })
         if (errors.length === 0) {
             ipcRenderer.invoke('status-message', {"message": `"Updating ${this.name}...`})
-            copyFileSync(filepath, this.path)
+            copyFileSync(normalize(filepath), this.path)
         } else {
             ipcRenderer.invoke('bsevent', {'event': 'versionUpdateError', 'data': errors.join('\n')})
         }
         // deleteFile(filepath)
         // delete require.cache[path.join(filepath, 'package.json')]
-        delete require.cache[path.normalize(path.join(filepath, 'package.json'))]
-        unlink(filepath, err => err && console.log(err))
+        delete require.cache[normalize(join(filepath, 'package.json'))]
+        unlink(normalize(filepath), err => err && console.log(err))
         return errors.length === 0
     }
 
     fileDownloadAndSave = async (fileUrl, filePath) => {
         return axios.get(fileUrl, {responseType: "arraybuffer"}).then((response) => {
-            writeFileSync(filePath, Buffer.from(response.data))
+            writeFileSync(normalize(filePath), Buffer.from(response.data))
         })
     }
 
@@ -114,7 +110,7 @@ class RemotePackage {
         const asarPath = `${this.path}_${this.version}.asar`
         try {
             await this.fileDownloadAndSave(fileUrl, asarPath)
-            const pkg = require(path.join(asarPath, 'package.json'))
+            const pkg = require(normalize(join(asarPath, 'package.json')))
             return this.checkVersionAndUpdateFile(pkg, asarPath)
         } catch (e) {
             console.warn({fileUrl, asarPath})

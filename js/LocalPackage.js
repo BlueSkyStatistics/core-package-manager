@@ -1,36 +1,30 @@
-const Store = require('electron-store')
-const sessionStore = new Store({name: 'constants'})
 const {Render} = require('squirrelly')
-const path = require('path')
-const { existsSync, unlinkSync, copyFileSync } = require('original-fs')
+const {join, normalize} = require('path')
+const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
+const {sessionStore} = global
 
 
 class LocalPackage {
-    get userDataPath() {
-        return sessionStore.get("userData")
-    }
-
-    get appRoot() {
-        return sessionStore.get("appRoot")
-    }
-
-    constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
+    constructor({name, path, importpath, devimportpath, storage,
+                    artifactType, sourceType, remote, update, removable}) {
+        this.userDataPath = sessionStore.get("userData")
+        this.appRoot = sessionStore.get("appRoot")
         this.name = name
         this._path = path
-        this.path = Render(this._path, {
+        this.path = normalize(Render(this._path, {
             'locals': this.userDataPath,
             'appRoot': this.appRoot
-        })
+        }))
         this._importpath = importpath
-        this.importPath = Render(this._importpath, {
+        this.importPath = normalize(Render(this._importpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
-        })
+        }))
         this._devimportpath = devimportpath
-        this.devImportPath = Render(this._devimportpath, {
+        this.devImportPath = normalize(Render(this._devimportpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
-        })
+        }))
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.storage = storage
@@ -44,32 +38,23 @@ class LocalPackage {
 
         // this.type = packageJson.artifactType
         this.description = ""
+        this.installerPath = Render(this._path, {
+            locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar'))
+        })
         this.getLocalVersion()
     }
 
     getAsarVersion = () => {
         try {
-            const pkg = require(path.join(this.path, 'package.json'))
+            const pkg = require(normalize(join(this.path, 'package.json')))
             this.version = pkg.version
             this.description = pkg.productName // question: why not pkg.description?
-            delete require.cache[path.join(this.path, 'package.json')]
+            delete require.cache[normalize(join(this.path, 'package.json'))]
         } catch (err) {
             console.warn(err)
             this.version = '0.0.0'
         }
     }
-
-    // getNonAsarVersion = () => {
-    //     try {
-    //         const pkg = require(path.join(this.path, 'package.json'))
-    //         this.version = pkg.version
-    //         this.description = pkg.productName // question: why not pkg.description?
-    //         delete require.cache[path.join(this.path, 'package.json')]
-    //     } catch (err) {
-    //         console.warn(err)
-    //         this.version = '0.0.0'
-    //     }
-    // }
 
     typeMapping = {
         asar: this.getAsarVersion,
@@ -81,17 +66,17 @@ class LocalPackage {
     }
 
     get originalJson() {
-        const {name, _path: path, _importpath: importpath,
+        const {
+            name, _path: path, _importpath: importpath,
             _devimportpath: devimportpath, storage,
             artifactType, sourceType, remote,
-            update, removable} = this
-        return {name, path, importpath, devimportpath, storage,
-            artifactType, sourceType, remote, update, removable}
+            update, removable
+        } = this
+        return {
+            name, path, importpath, devimportpath, storage,
+            artifactType, sourceType, remote, update, removable
+        }
     }
-
-    // get realImportPath() {
-    //     return sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
-    // }
 
     loadCss = url => {
         const el = document.createElement("link")
@@ -102,9 +87,9 @@ class LocalPackage {
     }
 
     handleImport = importPath => {
-        Object.entries(require(importPath)).forEach(([key, value]) => {
+        Object.entries(require(normalize(importPath))).forEach(([key, value]) => {
             if (key === 'css') {
-                const cssImportPath = importPath.split('/').slice(0, -1).join('/') + '/css/'
+                const cssImportPath = normalize(importPath.split('/').slice(0, -1).join('/') + '/css/')
                 value.forEach(cssFileRelativePath => {
                     try {
                         this.loadCss(cssImportPath + cssFileRelativePath)
@@ -119,40 +104,33 @@ class LocalPackage {
     }
 
     importAllFromPackage() {
-        console.log(sessionStore.get("appMode"))
+        // console.log(sessionStore.get("appMode"))
         try {
             console.log(`Importing from ${this.realImportPath}`)
             this.handleImport(this.realImportPath)
-        } catch(err) {
+        } catch (err) {
             console.log(err)
             console.log(`Importing from ${this.devImportPath}`)
             this.handleImport(this.devImportPath)
         }
-        
+
     }
 
     requirePackage() {
-        console.log(sessionStore.get("appMode"))
-        try{
+        try {
             console.log(`Importing from ${this.realImportPath}`)
             require(this.realImportPath)
-        } catch(err) {
+        } catch (err) {
             console.log(err)
             console.log(`Importing from ${this.devImportPath}`)
             require(this.devImportPath)
         }
     }
 
-    get installerPath() {
-        return Render(this._path, {
-            locals: path.join(this.appRoot.replace("app.asar", ""), 'package', 'asar')
-        })
-    }
-
     getInstallerVersion() {
-        const pkg = require(path.join(this.installerPath, 'package.json'))
+        const pkg = require(normalize(join(this.installerPath, 'package.json')))
         const {version} = pkg
-        delete require.cache[path.join(this.path, 'package.json')]
+        delete require.cache[normalize(join(this.path, 'package.json'))]
         return version
     }
 

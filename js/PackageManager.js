@@ -99,8 +99,8 @@ class PackageManager {
         return sessionStore.get("restartNeeded")
     }
 
-    static async getPackagesVersions() {
-        let modules = PackageManager.getModulesMeta()
+    async getPackagesVersions() {
+        // let modules = PackageManager.getModulesMeta()
 
         const process_package = async (package_item, additional_data = {}) => {
             ipcRenderer.invoke('status-message', {
@@ -117,8 +117,8 @@ class PackageManager {
             }
         }
 
-        const coreModulesVersions = await Promise.all(modules.core.map(async i => await process_package(i, {type: "core"})))
-        const dialogModulesVersions = await Promise.all(modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
+        const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
+        const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
         return [...coreModulesVersions, ...dialogModulesVersions]
     }
 

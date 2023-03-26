@@ -128,10 +128,15 @@ class LocalPackage {
     }
 
     getInstallerVersion() {
-        const pkg = require(normalize(join(this.installerPath, 'package.json')))
-        const {version} = pkg
-        delete require.cache[normalize(join(this.path, 'package.json'))]
-        return version
+        try {
+            const pkg = require(normalize(join(this.installerPath, 'package.json')))
+            const {version} = pkg
+            delete require.cache[normalize(join(this.path, 'package.json'))]
+            return version
+        } catch (e) {
+            console.warn('Cannot get version for ', this.name)
+            return '0.0.0'
+        }
     }
 
     copyFromInstaller() {

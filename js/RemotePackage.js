@@ -51,7 +51,8 @@ class RemotePackage {
     }
 
     checkVersionAndUpdateFile = (pkg, filepath) => {
-        const installedBSkyVersion = sessionStore.get("installedPackages").BlueSky
+        // const installedBSkyVersion = sessionStore.get("installedPackages").BlueSky
+        const installedBSkyVersion = sessionStore.get("version")
         const errors = []
         if (!(
             pkg.minBSkyVersion === undefined ||

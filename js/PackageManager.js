@@ -12,8 +12,10 @@ const {sessionStore} = global
 
 class PackageManager {
     constructor() {
-        ipcRenderer.invoke('listInstalled')
-        this.modules = sessionStore.get('modules')
+        if ( sessionStore.get("installedPackages") == undefined ) {
+            ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
+        }
+        this.modules = sessionStore.get("modulesContent")
     }
 
     importInit() {
@@ -56,7 +58,11 @@ class PackageManager {
                 return
             }
         }
-
+        
+        if (configStore.get("offline")) {
+            return 
+        }
+        
         const _remotePackage = new RemotePackage(module)
         await _remotePackage.getRemoteDetails(versionToUpdate)
         switch (module.update) {
@@ -101,15 +107,20 @@ class PackageManager {
 
     async getPackagesVersions() {
         // let modules = PackageManager.getModulesMeta()
-
         const process_package = async (package_item, additional_data = {}) => {
-            ipcRenderer.invoke('status-message', {
-                message: `Checking version of ${package_item.name} ...`,
-                nomain: true
-            })
-            const _remotePackage = new RemotePackage(package_item)
-            await _remotePackage.getRemoteDetails()
             const {name, version, description} = new LocalPackage(package_item)
+            var _remotePackage;
+            if (configStore.get("offline")) {
+                _remotePackage = {versions: [{name: version}]}
+            } else {
+                ipcRenderer.invoke('status-message', {
+                    message: `Checking version of ${package_item.name} ...`,
+                    nomain: true
+                })
+                _remotePackage = new RemotePackage(package_item)
+                await _remotePackage.getRemoteDetails()
+            }
+            
             return {
                 name, version, description,
                 available: _remotePackage.versions,

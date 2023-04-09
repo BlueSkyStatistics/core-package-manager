@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
+      - run: npm i
       - run: npm i asar
       - run: ./node_modules/.bin/asar pack . core-package-manager.asar
       - name: Release

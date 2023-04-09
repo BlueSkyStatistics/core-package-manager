@@ -1,6 +1,5 @@
 const axios = require('axios')
 const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
-const {ipcRenderer} = require('electron')
 const {Render} = require('squirrelly')
 const {writeFileSync, copyFileSync, unlink} = require('original-fs')
 const {normalize, join} = require("path")

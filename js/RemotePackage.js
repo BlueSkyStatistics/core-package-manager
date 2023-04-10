@@ -1,35 +1,32 @@
 const axios = require('axios')
-const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
-const {Render} = require('squirrelly')
+// const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
+// const {this.manager.squirrelly.Render} = require('squirrelly')
 const {writeFileSync, copyFileSync, unlink} = require('original-fs')
 const {normalize, join} = require("path")
-const {sessionStore} = global
 
-const satisfyVersion = pkgName => {
-    const installedPackages = sessionStore.get("installedPackages")
-    return installedPackages.hasOwnProperty(
-        Object.keys(pkgName)[0]) && satisfyVer(
-        installedPackages[Object.keys(pkgName)[0]],
-        Object.values(pkgName)[0]
-    )
-}
+// const {this.manager.store} = global
+
 
 class RemotePackage {
-    constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
-        this.userDataPath = sessionStore.get("userData")
-        this.appRoot = sessionStore.get("appRoot")
+    constructor({
+                    manager, name, path, importpath, devimportpath, storage,
+                    artifactType, sourceType, remote, update, removable
+                }) {
+        this.manager = manager
+        this.userDataPath = this.manager.store.get("userData")
+        this.appRoot = this.manager.store.get("appRoot")
         this.name = name
         this._path = path
-        this.path = normalize(Render(this._path, {
+        this.path = normalize(this.manager.squirrelly.Render(this._path, {
             locals: this.userDataPath,
         }))
         this._importpath = importpath
-        // this.importPath = Sqrl.Render(this._importpath, {
+        // this.importPath = Sqrl.this.manager.squirrelly.Render(this._importpath, {
         //     locals: this.userDataPath,
         //     appRoot: this.appRoot
         // })
         this._devimportpath = devimportpath
-        // this.devImportPath = Sqrl.Render(this._devimportpath, {
+        // this.devImportPath = Sqrl.this.manager.squirrelly.Render(this._devimportpath, {
         //     locals: this.userDataPath,
         //     appRoot: this.appRoot
         // })
@@ -38,7 +35,7 @@ class RemotePackage {
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.remote = remote.trim()
-        this.remotePath = normalize(Render(this.urlMapped[this.storage], {repo: this.remote}))
+        this.remotePath = normalize(this.manager.squirrelly.Render(this.urlMapped[this.storage], {repo: this.remote}))
 
         this.update = update
         this.removable = removable
@@ -49,27 +46,36 @@ class RemotePackage {
         this.versions = []
     }
 
+    satisfyVersion = pkgName => {
+        const installedPackages = this.manager.store.get("installedPackages")
+        return installedPackages.hasOwnProperty(
+            Object.keys(pkgName)[0]) && this.manager.semver.satisfies(
+            installedPackages[Object.keys(pkgName)[0]],
+            Object.values(pkgName)[0]
+        )
+    }
+
     checkVersionAndUpdateFile = (pkg, filepath) => {
-        // const installedBSkyVersion = sessionStore.get("installedPackages").BlueSky
-        const installedBSkyVersion = sessionStore.get("version")
+        // const installedBSkyVersion = this.manager.store.get("installedPackages").BlueSky
+        const installedBSkyVersion = this.manager.store.get("version")
         const errors = []
         if (!(
             pkg.minBSkyVersion === undefined ||
             // adding .0 because BSky versions are done with only 2 digits
-            semverLte(`${pkg.minBSkyVersion}.0`, `${installedBSkyVersion}.0`)
+            this.manager.semver.lte(`${pkg.minBSkyVersion}.0`, `${installedBSkyVersion}.0`)
         )) {
             errors.push(`package ${this.name} requires BSky R Package version: ${pkg.minBSkyVersion} but current version is ${installedBSkyVersion})`)
         }
         pkg.requiredPackages?.forEach(item => {
-            if (!satisfyVersion(item)) {
-                errors.push(`required R Package ${Object.keys(item)[0]} version: ${Object.values(item)[0]} but current version is ${sessionStore.get("installedPackages")[item[0]]}`)
+            if (!this.satisfyVersion(item)) {
+                errors.push(`required R Package ${Object.keys(item)[0]} version: ${Object.values(item)[0]} but current version is ${this.manager.store.get("installedPackages")[item[0]]}`)
             }
         })
         if (errors.length === 0) {
-            ipcRenderer.invoke('status-message', {"message": `"Updating ${this.name}...`})
+            this.manager.ipcRenderer.invoke('status-message', {"message": `"Updating ${this.name}...`})
             copyFileSync(normalize(filepath), this.path)
         } else {
-            ipcRenderer.invoke('bsevent', {'event': 'versionUpdateError', 'data': errors.join('\n')})
+            this.manager.ipcRenderer.invoke('bsevent', {'event': 'versionUpdateError', 'data': errors.join('\n')})
         }
         // deleteFile(filepath)
         // delete require.cache[path.join(filepath, 'package.json')]
@@ -94,7 +100,7 @@ class RemotePackage {
             }))
 
             this.version = versionToUpdate === undefined ?
-                semverMaxSatisfying(this.versions.map(i => Object.keys(i)[0]), "*") :
+                this.manager.semver.maxSatisfying(this.versions.map(i => Object.keys(i)[0]), "*") :
                 versionToUpdate
 
             this.details = this.versions.find(i => Object.keys(i)[0] === this.version)[this.version]

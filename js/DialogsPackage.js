@@ -1,5 +1,6 @@
-const LocalPackage = require("./localPackage")
+const LocalPackage = require('./LocalPackage')
 const {join, normalize} = require('path')
+
 
 class DialogsPackage extends LocalPackage {
     constructor(packageJson) {
@@ -26,7 +27,7 @@ class DialogsPackage extends LocalPackage {
             packageNavList = packageNav
         }
         // var navList = []
-        const navList = packageNavList.map(p => {
+        return packageNavList.map(p => {
             console.log('making nav', p)
             p.buttons = p.buttons.map(b => {
                 if (typeof b === 'object') {
@@ -43,7 +44,6 @@ class DialogsPackage extends LocalPackage {
             delete require.cache[importPath]
             return p
         })
-        return navList
     }
 }
 

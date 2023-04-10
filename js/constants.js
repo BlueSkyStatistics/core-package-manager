@@ -18,15 +18,17 @@ const packageUpdateVersionInstalledMessage = {
     message: 'You have this version installed'
 }
 
-const updateModule = async (manager, module, version) => {
-    const restartNeeded = await manager.updateOnePackage(module, version)
-    restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
-}
+const MODULES_STORE_KEY = 'modulesContent'
+const INSTALLED_PACKAGES_STORE_KEY = 'installedPackages'
+const RESTART_NEEDED_STORE_KEY = 'restartNeeded'
 
 
 module.exports = {
+    packageUpdateSuccessMessage,
     packageUpdateVersionInstalledMessage,
-    updateModule
+    MODULES_STORE_KEY,
+    INSTALLED_PACKAGES_STORE_KEY,
+    RESTART_NEEDED_STORE_KEY
 }
 
 

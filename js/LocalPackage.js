@@ -1,27 +1,28 @@
-const {Render} = require('squirrelly')
+// const {Render} = require('squirrelly')
 const {join, normalize} = require('path')
 const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
-const {sessionStore} = global
+// const {sessionStore} = global
 
 
 class LocalPackage {
-    constructor({name, path, importpath, devimportpath, storage,
+    constructor({manager, name, path, importpath, devimportpath, storage,
                     artifactType, sourceType, remote, update, removable}) {
-        this.userDataPath = sessionStore.get("userData")
-        this.appRoot = sessionStore.get("appRoot")
+        this.manager = manager
+        this.userDataPath = this.manager.store.get("userData")
+        this.appRoot = this.manager.store.get("appRoot")
         this.name = name
         this._path = path
-        this.path = normalize(Render(this._path, {
+        this.path = normalize(this.manager.squirrelly.Render(this._path, {
             'locals': this.userDataPath,
             'appRoot': this.appRoot
         }))
         this._importpath = importpath
-        this.importPath = normalize(Render(this._importpath, {
+        this.importPath = normalize(this.manager.squirrelly.Render(this._importpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
         }))
         this._devimportpath = devimportpath
-        this.devImportPath = normalize(Render(this._devimportpath, {
+        this.devImportPath = normalize(this.manager.squirrelly.Render(this._devimportpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
         }))
@@ -33,12 +34,12 @@ class LocalPackage {
         this.removable = removable
         this.version = '0.0.0'
 
-        this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
+        this.realImportPath = this.manager.store.get("appMode") === 'prod' ? this.importPath : this.devImportPath
 
 
         // this.type = packageJson.artifactType
         this.description = ""
-        this.installerPath = Render(this._path, {
+        this.installerPath = this.manager.squirrelly.Render(this._path, {
             locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar'))
         })
         this.getLocalVersion()
@@ -104,7 +105,6 @@ class LocalPackage {
     }
 
     importAllFromPackage() {
-        // console.log(sessionStore.get("appMode"))
         try {
             console.log(`Importing from ${this.realImportPath}`)
             this.handleImport(this.realImportPath)

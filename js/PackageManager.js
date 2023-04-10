@@ -1,7 +1,13 @@
-const ipcRenderer = require('electron').ipcRenderer
-const LocalPackage = require("./LocalPackage")
-const RemotePackage = require("./RemotePackage")
-const {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
+var path = require('path')
+try {
+    var LocalPackage = require("./LocalPackage")
+    var RemotePackage = require("./RemotePackage")
+    var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
+} catch(er) {
+    var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
+    var RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
+    var {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
+}
 const gt = require('semver').gt
 
 // ipcRenderer.on('versionUpdateError', (event, message) => {

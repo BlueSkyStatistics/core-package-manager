@@ -1,5 +1,10 @@
-const LocalPackage = require("./localPackage")
 const {join, normalize} = require('path')
+
+try {
+    var LocalPackage = require("./localPackage")
+} catch (ex) {
+    var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
+}
 
 class DialogsPackage extends LocalPackage {
     constructor(packageJson) {

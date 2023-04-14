@@ -6,7 +6,7 @@ const {writeFileSync} = require('original-fs')
 const {normalize} = require("path")
 
 
-class firebaseStoreClient{
+class firebaseClient{
     constructor(firebaseConfig, bucket){
         // Initialize Firebase
         this.app = initializeApp(firebaseConfig);
@@ -15,7 +15,7 @@ class firebaseStoreClient{
         this.db = getFirestore(this.app);
     }
     
-    // Firebase rule: match /public/{moduleType}/{dialogsType}/{version}/{itemId} {allow read: if true;}
+    // Firebase rule: match /{lic}/{moduleType}/{dialogsType}/{version}/{itemId} {allow read: if true;}
     // ReturnStructure: none, save file from fireBase Store into storeLocation
     async downloadFile(filePath, storeLocation) {
         var pathReference = ref(this.storage, filePath);
@@ -23,7 +23,8 @@ class firebaseStoreClient{
         var url = await getDownloadURL(pathReference);
         console.log(url)
         var response = await axios.get(url, {responseType: "blob"})
-        writeFileSync(normalize(storeLocation), Buffer.from(response.data))
+        var arrayBuff = await response.data.arrayBuffer()
+        writeFileSync(normalize(storeLocation), Buffer.from(arrayBuff))
     }
 
     // structure of modulesVersions
@@ -48,6 +49,4 @@ class firebaseStoreClient{
     }
 }
 
-// var firebaseClient = new firebaseStoreClient(firebaseConfig, "gs://blueskystatistics-4ad1f.appspot.com")
-// firebaseClient.downloadFile('public/dialogs/elementslib/1.1.7/elementslib.asar', "some.asar").then(() => { console.log("dome") })
-// firebaseClient.getPackageVersions("elementslib").then((result) => {console.log(result)})
+module.exports = firebaseClient

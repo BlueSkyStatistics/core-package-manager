@@ -1,14 +1,18 @@
 var path = require('path')
+const gt = require('semver').gt
+
 try {
     var LocalPackage = require("./LocalPackage")
     var RemotePackage = require("./RemotePackage")
     var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
+    var firebaseClient = require("./clients/firebaseClient")
 } catch(er) {
     var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
     var RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
     var {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
+    var firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
 }
-const gt = require('semver').gt
+
 
 // ipcRenderer.on('versionUpdateError', (event, message) => {
 //     ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
@@ -22,6 +26,11 @@ class PackageManager {
             ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
         this.modules = sessionStore.get("modulesContent")
+        this.firebaseClient = undefined
+        if (sessionStore.get("firebaseConfig")) {
+            this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
+        }
+        
     }
 
     importInit() {
@@ -68,8 +77,7 @@ class PackageManager {
         if (configStore.get("offline")) {
             return 
         }
-        
-        const _remotePackage = new RemotePackage(module)
+        const _remotePackage = new RemotePackage(module, this.firebaseClient)
         await _remotePackage.getRemoteDetails(versionToUpdate)
         switch (module.update) {
             case 'auto':
@@ -100,10 +108,12 @@ class PackageManager {
         sessionStore.delete("restartNeeded")
         sessionStore.set("restartNeeded", false)
 
-        for (const module of this.modules.core) {
+        for (var module of this.modules.core) {
+            module.moduleType = 'core'
             await this.updateOnePackage(module)
         }
         for (const dialog of this.modules.dialogs) {
+            module.moduleType = 'dialogs'
             await this.updateOnePackage(dialog)
         }
         ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
@@ -116,6 +126,7 @@ class PackageManager {
         const process_package = async (package_item, additional_data = {}) => {
             const {name, version, description} = new LocalPackage(package_item)
             var _remotePackage;
+            package_item.moduleType = additional_data.type
             if (configStore.get("offline")) {
                 _remotePackage = {versions: [{name: version}]}
             } else {

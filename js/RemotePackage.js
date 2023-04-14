@@ -15,14 +15,18 @@ const satisfyVersion = pkgName => {
 }
 
 class RemotePackage {
-    constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable}) {
+    constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable, moduleType}, firebaseClient) {
         this.userDataPath = sessionStore.get("userData")
         this.appRoot = sessionStore.get("appRoot")
+        this.firebaseClient = firebaseClient
+
         this.name = name
+        this.moduleType = moduleType
         this._path = path
         this.path = normalize(Render(this._path, {
             locals: this.userDataPath,
         }))
+        
         this._importpath = importpath
         // this.importPath = Sqrl.Render(this._importpath, {
         //     locals: this.userDataPath,
@@ -84,8 +88,26 @@ class RemotePackage {
         })
     }
 
+
+    firebaseReleaseVerion = async versionToUpdate => {
+        try {
+            var data = await this.firebaseClient.getPackageVersions(this.remotePath)
+            this.versions = data.map(i => ({
+                [i.version]: i
+            }))
+            this.version = versionToUpdate === undefined ?
+                    semverMaxSatisfying(this.versions.map(i => Object.keys(i)[0]), "*") :
+                    versionToUpdate
+
+            this.details = this.versions.find(i => Object.keys(i)[0] === this.version)[this.version]
+        } catch (e) {
+            console.warn('firebaseReleaseVerion error', e)
+            this.version = '0.0.0'
+            this.details = {}
+        }
+    }
+
     gitReleaseVersion = async versionToUpdate => {
-        // question: why outerthis??
         try {
             const resp = await fetch(this.remotePath)
             const data = await resp.json()
@@ -105,6 +127,22 @@ class RemotePackage {
         }
     }
 
+    firebaseReleaseAsarInstall = async () => {
+        const filePath = `public/${this.moduleType}/${this.details.name}/${this.details.version}/${this.details.filename}`
+        const asarPath = `${this.path}_${this.version}.asar`
+        console.log(filePath)
+        try {
+            await this.firebaseClient.downloadFile(filePath, asarPath)
+            const pkg = require(normalize(join(asarPath, 'package.json')))
+            return this.checkVersionAndUpdateFile(pkg, asarPath)
+        } catch (e) {
+            console.warn({filePath, asarPath})
+            console.warn(e)
+        }
+        return false
+    }
+
+
     gitReleaseAsarInstall = async () => {
         const fileUrl = this.details.assets[0].browser_download_url
         const asarPath = `${this.path}_${this.version}.asar`
@@ -123,6 +161,9 @@ class RemotePackage {
         github: {
             release: this.gitReleaseVersion
         },
+        firebase: {
+            release: this.firebaseReleaseVerion
+        },
         local: {
             local: () => {
             }
@@ -133,6 +174,9 @@ class RemotePackage {
         github: {
             asar: this.gitReleaseAsarInstall
         },
+        firebase: {
+            asar: this.firebaseReleaseAsarInstall
+        },
         local: {
             local: () => true
         }
@@ -140,6 +184,7 @@ class RemotePackage {
 
     urlMapped = {
         github: 'https://api.github.com/repos/{{repo}}/releases',
+        firebase: '{{repo}}',
         local: '{{repo}}'
     }
 

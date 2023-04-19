@@ -88,17 +88,27 @@ class LocalPackage {
 
     handleImport = importPath => {
         Object.entries(require(normalize(importPath))).forEach(([key, value]) => {
-            if (key === 'css') {
-                const cssImportPath = normalize(importPath.split('/').slice(0, -1).join('/') + '/css/')
-                value.forEach(cssFileRelativePath => {
+            switch (key) {
+                case 'init':
+                    console.log('Init detected for', importPath, 'initializing...')
                     try {
-                        this.loadCss(cssImportPath + cssFileRelativePath)
-                    } catch {
-                        console.warn('Could not import css file', cssFileRelativePath)
+                        value({global})
+                    } catch (e) {
+                        console.error('Init error at', importPath, e)
                     }
-                })
-            } else {
-                global[key] = value
+                    break
+                case 'css':
+                    const cssImportPath = normalize(importPath.split('/').slice(0, -1).join('/') + '/css/')
+                    value.forEach(cssFileRelativePath => {
+                        try {
+                            this.loadCss(cssImportPath + cssFileRelativePath)
+                        } catch {
+                            console.warn('Could not import css file', cssFileRelativePath)
+                        }
+                    })
+                    break
+                default:
+                    global[key] = value
             }
         })
     }
@@ -106,11 +116,11 @@ class LocalPackage {
     importAllFromPackage() {
         // console.log(sessionStore.get("appMode"))
         try {
-            console.log(`Importing from ${this.realImportPath}`)
+            console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
             this.handleImport(this.realImportPath)
         } catch (err) {
             console.log(err)
-            console.log(`Importing from ${this.devImportPath}`)
+            console.log(`Importing [importAllFromPackage] from ${this.devImportPath}`)
             this.handleImport(this.devImportPath)
         }
 
@@ -118,11 +128,11 @@ class LocalPackage {
 
     requirePackage() {
         try {
-            console.log(`Importing from ${this.realImportPath}`)
+            console.log(`Importing [requirePackage] from ${this.realImportPath}`)
             require(this.realImportPath)
         } catch (err) {
             console.log(err)
-            console.log(`Importing from ${this.devImportPath}`)
+            console.log(`Importing [requirePackage] from ${this.devImportPath}`)
             require(this.devImportPath)
         }
     }

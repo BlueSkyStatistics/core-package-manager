@@ -90,11 +90,11 @@ class LocalPackage {
         Object.entries(require(normalize(importPath))).forEach(([key, value]) => {
             switch (key) {
                 case 'init':
-                    console.log('Init detected for', importPath, 'initializing...')
+                    ipcRenderer.invoke("debug", { message: `Init detected for ${importPath} initializing...` , source: "LocalPackage", event: "spawn" })
                     try {
                         value({global})
                     } catch (e) {
-                        console.error('Init error at', importPath, e)
+                        ipcRenderer.invoke("debug", { message: `Init error at ${importPath} ${e}` , source: "LocalPackage", event: "spawn" })
                     }
                     break
                 case 'css':

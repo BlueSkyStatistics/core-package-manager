@@ -22,15 +22,17 @@ const {sessionStore} = global
 
 class PackageManager {
     constructor() {
+        this.modules = sessionStore.get("modulesContent")
+    }
+
+    init() {
         if ( sessionStore.get("installedPackages") == undefined ) {
             ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
-        this.modules = sessionStore.get("modulesContent")
         this.firebaseClient = undefined
         if (sessionStore.get("firebaseConfig")) {
             this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
         }
-        
     }
 
     importInit() {
@@ -134,7 +136,7 @@ class PackageManager {
                     message: `Checking version of ${package_item.name} ...`,
                     nomain: true
                 })
-                _remotePackage = new RemotePackage(package_item)
+                _remotePackage = new RemotePackage(package_item, this.firebaseClient)
                 await _remotePackage.getRemoteDetails()
             }
             

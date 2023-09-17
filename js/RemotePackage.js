@@ -3,6 +3,7 @@ const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer
 const {Render} = require('squirrelly')
 const {writeFileSync, copyFileSync, unlink} = require('original-fs')
 const {normalize, join} = require("path")
+const path = require("path");
 const {sessionStore} = global
 
 const satisfyVersion = pkgName => {
@@ -89,7 +90,7 @@ class RemotePackage {
     }
 
 
-    firebaseReleaseVerion = async versionToUpdate => {
+    firebaseReleaseVersion = async versionToUpdate => {
         try {
             var data = await this.firebaseClient.getPackageVersions(this.remotePath)
             this.versions = data.map(i => ({
@@ -101,7 +102,7 @@ class RemotePackage {
 
             this.details = this.versions.find(i => Object.keys(i)[0] === this.version)[this.version]
         } catch (e) {
-            console.warn('firebaseReleaseVerion error', e)
+            console.warn('firebaseReleaseVersion error', e)
             this.version = '0.0.0'
             this.details = {}
         }
@@ -128,15 +129,18 @@ class RemotePackage {
     }
 
     firebaseReleaseAsarInstall = async () => {
-        const filePath = `public/${this.moduleType}/${this.details.name}/${this.details.version}/${this.details.filename}`
-        const asarPath = `${this.path}_${this.version}.asar`
-        console.log(filePath)
+        const {filePath, filename} = this.details
+        const fullPath = filePath + '/' + filename
+        const formattedName = `${path.parse(this.path).name}_${this.version}.asar`
+        const formattedPath = path.parse(this.path).dir
+        const asarPath = path.join(formattedPath, formattedName)
+        // console.log(fullPath)
         try {
-            await this.firebaseClient.downloadFile(filePath, asarPath)
+            await this.firebaseClient.downloadFile(fullPath, asarPath)
             const pkg = require(normalize(join(asarPath, 'package.json')))
             return this.checkVersionAndUpdateFile(pkg, asarPath)
         } catch (e) {
-            console.warn({filePath, asarPath})
+            console.warn({fullPath, asarPath})
             console.warn(e)
         }
         return false
@@ -162,7 +166,7 @@ class RemotePackage {
             release: this.gitReleaseVersion
         },
         firebase: {
-            release: this.firebaseReleaseVerion
+            release: this.firebaseReleaseVersion
         },
         local: {
             local: () => {

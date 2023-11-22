@@ -1,81 +1,60 @@
 const {Render} = require('squirrelly')
 const {join, normalize} = require('path')
 const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
+const {gt, maxSatisfying} = require("semver");
+const DownloadManager = require("./DownloadManager");
 const {sessionStore} = global
 
 
 class LocalPackage {
-    constructor({name, path, importpath, devimportpath, storage,
-                    artifactType, sourceType, remote, update, removable}) {
-        this.userDataPath = sessionStore.get("userData")
-        this.appRoot = sessionStore.get("appRoot")
-        this.name = name
-        this._path = path
-        this.path = normalize(Render(this._path, {
-            'locals': this.userDataPath,
-            'appRoot': this.appRoot
-        }))
-        this._importpath = importpath
-        this.importPath = normalize(Render(this._importpath, {
-            locals: this.userDataPath,
-            appRoot: this.appRoot
-        }))
-        this._devimportpath = devimportpath
-        this.devImportPath = normalize(Render(this._devimportpath, {
-            locals: this.userDataPath,
-            appRoot: this.appRoot
-        }))
-        this.artifactType = artifactType
-        this.sourceType = sourceType
-        this.storage = storage
-        this.remote = remote.trim()
-        this.update = update
-        this.removable = removable
-        this.version = '0.0.0'
-
-        this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
-
-
-        // this.type = packageJson.artifactType
-        this.description = ""
-        this.installerPath = Render(this._path, {
-            locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar'))
-        })
-        this.getLocalVersion()
+    get importPath() {
+        return normalize(join(this.path, this.main))
     }
 
-    getAsarVersion = () => {
+    constructor(moduleData, availableVersions = {}) {
+        this.availableVersions = availableVersions
+
+        this.name = moduleData.name
+        this.group = moduleData.group
+        this.rawPath = moduleData.path
+        // this.artifactType = moduleData.artifactType
+        this.storage = moduleData.storage
+        this.updateStrategy = moduleData.update
+        this.removable = moduleData.removable
+        this.minBSkyVersion = moduleData.minBSkyVersion
+        this.minAppVersion = moduleData.minAppVersion
+        this.extra = moduleData.extra
+
+        this.version = '0.0.0'
+        this.main = undefined
+        this.exists = false
+
+
+
+        this.path = join(normalize(Render(this.rawPath, {
+            'locals': join(sessionStore.get('userData'), 'modules'), // todo: check folder exists
+            'appRoot': sessionStore.get('appRoot')
+        })))
+        // const root = this.artifactType ? `${this.name}.${this.artifactType}` : this.name
+        // this.root = join(this.path, root)
+
+        const packageMetaPath = normalize(join(this.path, 'package.json'))
         try {
-            const pkg = require(normalize(join(this.path, 'package.json')))
-            this.version = pkg.version
-            this.description = pkg.productName // question: why not pkg.description?
-            delete require.cache[normalize(join(this.path, 'package.json'))]
+            const pkgMeta = require(packageMetaPath)
+            const {version, main} = pkgMeta
+            this.meta = pkgMeta
+            this.version = version
+            this.main = main
+            this.exists = true
+            delete require.cache[packageMetaPath]
         } catch (err) {
             console.warn(err)
-            this.version = '0.0.0'
         }
-    }
 
-    typeMapping = {
-        asar: this.getAsarVersion,
-        local: this.getAsarVersion
-    }
+        this.installerPath = Render(this.rawPath, {
+            locals: normalize(join(sessionStore.get("appRoot").replace("app.asar", ""), 'package', 'asar'))
+        })
 
-    getLocalVersion() {
-        return this.typeMapping[this.artifactType]()
-    }
-
-    get originalJson() {
-        const {
-            name, _path: path, _importpath: importpath,
-            _devimportpath: devimportpath, storage,
-            artifactType, sourceType, remote,
-            update, removable
-        } = this
-        return {
-            name, path, importpath, devimportpath, storage,
-            artifactType, sourceType, remote, update, removable
-        }
     }
 
     loadCss = url => {
@@ -87,14 +66,22 @@ class LocalPackage {
     }
 
     handleImport = importPath => {
-        Object.entries(require(normalize(importPath))).forEach(([key, value]) => {
+        Object.entries(require(importPath)).forEach(([key, value]) => {
             switch (key) {
                 case 'init':
-                    ipcRenderer.invoke("debug", { message: `Init detected for ${importPath} initializing...` , source: "LocalPackage", event: "spawn" })
+                    ipcRenderer.invoke("debug", {
+                        message: `Init detected for ${importPath} initializing...`,
+                        source: "LocalPackage",
+                        event: "spawn"
+                    })
                     try {
                         value({global})
                     } catch (e) {
-                        ipcRenderer.invoke("debug", { message: `Init error at ${importPath} ${e}` , source: "LocalPackage", event: "spawn" })
+                        ipcRenderer.invoke("debug", {
+                            message: `Init error at ${importPath} ${e}`,
+                            source: "LocalPackage",
+                            event: "spawn"
+                        })
                     }
                     break
                 case 'css':
@@ -114,26 +101,25 @@ class LocalPackage {
     }
 
     importAllFromPackage() {
-        // console.log(sessionStore.get("appMode"))
+        if (!this.exists) {
+            console.warn(`Cannot import ${this.name} because it does not exist`)
+            return
+        }
         try {
-            console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
-            this.handleImport(this.realImportPath)
+            console.log(`Importing [importAllFromPackage] from ${this.importPath}`)
+            this.handleImport(this.importPath)
         } catch (err) {
             console.log(err)
-            console.log(`Importing [importAllFromPackage] from ${this.devImportPath}`)
-            this.handleImport(this.devImportPath)
         }
 
     }
 
     requirePackage() {
         try {
-            console.log(`Importing [requirePackage] from ${this.realImportPath}`)
-            require(this.realImportPath)
+            console.log(`Importing [requirePackage] from ${this.importPath}`)
+            require(this.importPath)
         } catch (err) {
             console.log(err)
-            console.log(`Importing [requirePackage] from ${this.devImportPath}`)
-            require(this.devImportPath)
         }
     }
 
@@ -166,6 +152,58 @@ class LocalPackage {
             unlinkSync(this.path)
         } catch {
             console.log(`Could not remove file ${this.path}`)
+        }
+    }
+
+    async update(isOffline, versionToUpdate = undefined) {
+        if (this.storage === 'dev') {
+            // do nothing if developing plugin
+            console.log(
+                'Modules with storage type "dev" can only be updated manually.',
+                `${this.name}: ${this.version} --> ${versionToUpdate}`
+            )
+            return false
+        }
+        let restartNeeded = false
+        let targetVersion = versionToUpdate || maxSatisfying(Object.keys(this.availableVersions).map(i => i), "*")
+
+        if (!this.exists) {
+            if (this.copyFromInstaller()) {
+                return true
+            }
+            return false
+        }
+        // if (this.sourceType === 'local') {
+        if (this.storage === 'local') {
+            if (gt(this.getInstallerVersion(), this.version)) {
+                restartNeeded = this.copyFromInstaller()
+            }
+            return restartNeeded
+        }
+        if (isOffline) {
+            return false
+        }
+
+        const updateModuleMeta = availableVersions[targetVersion]
+        switch (this.updateStrategy) {
+            case 'auto':
+                if (gt(targetVersion, this.version)) {
+                    const dlManager = new DownloadManager(updateModuleMeta, this.path)
+                    const installSuccess = await dlManager.installPackage()
+                    // restartNeeded = restartNeeded || await remote.installPackage()
+                    restartNeeded = restartNeeded || installSuccess
+                }
+                break
+            case 'manual':
+                if (versionToUpdate) {
+                    const dlManager = new DownloadManager(updateModuleMeta, this.path)
+                    const installSuccess = await dlManager.installPackage()
+                    restartNeeded = restartNeeded || installSuccess
+                }
+                await ipcRenderer.invoke('core-module-update-available', module)
+                break
+            default:
+                console.warn('Update mode unknown: ', this.meta.update)
         }
     }
 }

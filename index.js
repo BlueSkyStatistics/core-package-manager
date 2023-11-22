@@ -3,16 +3,16 @@
 //     css: ['notifyer.css']
 // }
 
-var LocalPackage = require("./js/LocalPackage")
-var RemotePackage = require("./js/RemotePackage")
-var DialogsPackage = require("./js/DialogsPackage")
-var PackageManager = require("./js/PackageManager")
+const LocalPackage = require("./js/LocalPackage")
+// var RemotePackage = require("./js/RemotePackage")
+const DialogsPackage = require("./js/DialogsPackage")
+const PackageManager = require("./js/PackageManager")
 
 
 
 module.exports = {
     LocalPackage,
-    RemotePackage,
+    // RemotePackage,
     DialogsPackage,
     PackageManager
 }

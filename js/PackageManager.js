@@ -1,16 +1,20 @@
-var path = require('path')
+const fs = require("fs");
+const {normalize} = require("path");
+const {initializeApp} = require("firebase/app");
+const {getFirestore, query, collection, where, getDocs} = require("firebase/firestore");
+const {maxSatisfying: semverMaxSatisfying} = require("semver");
+const {packageUpdateSuccessMessage} = require("./handlers");
 const gt = require('semver').gt
 
+let LocalPackage
 try {
-    var LocalPackage = require("./LocalPackage")
-    var RemotePackage = require("./RemotePackage")
+    LocalPackage = require("./LocalPackage")
     var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
-    var firebaseClient = require("./clients/firebaseClient")
+    // var firebaseClient = require("./clients/firebaseClient")
 } catch(er) {
-    var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
-    var RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
-    var {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
-    var firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
+    LocalPackage = require(normalize(__dirname + "/LocalPackage"));
+    var {packageUpdateVersionInstalledMessage, updateModule} = require(normalize(__dirname + "/handlers"));
+    // var firebaseClient = require(normalize(__dirname + "/clients/firebaseClient"))
 }
 
 
@@ -18,154 +22,205 @@ try {
 //     ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
 // })
 
-const {sessionStore} = global
+const {sessionStore, configStore} = global
 
 class PackageManager {
+
+    get modules() {
+        return sessionStore.get('modulesContent', {})
+    }
+
+    get isOffline() {
+        return configStore.get('offline', false)
+    }
+
     constructor() {
-        this.modules = sessionStore.get("modulesContent")
+        // this.modules =
+        // sessionStore.delete('moduleAvailableVersions')
+        // this.isOffline = configStore.get('offline', false)
+        // this.getUpdateMeta().then(updateMeta => console.log('this will be the update meta', updateMeta))
+        this.availableModules = {}
+
+        !this.isOffline && this.getUpdateMeta().then(res => {
+            this.availableModules = res
+        })
+        // this.firebaseClient = undefined
     }
 
     init() {
-        if ( sessionStore.get("installedPackages") == undefined ) {
+        if ( sessionStore.get("installedPackages") === undefined ) {
             ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
-        }
-        this.firebaseClient = undefined
-        if (sessionStore.get("firebaseConfig")) {
-            this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
         }
     }
 
     importInit() {
-        this.modules.init?.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
+        Object.values(this.modules).forEach(i =>
+            i.group === 'init' && new LocalPackage(i).importAllFromPackage()
         )
     }
 
     importPackages() {
         // To avoid async and be prepared for app launch we import whatever we have
-        this.modules.core.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
+        // this.modules.core.forEach(i =>
+        //     new LocalPackage(i).importAllFromPackage()
+        // )
+        Object.values(this.modules).forEach(i =>
+            i.group === 'core' && new LocalPackage(i).importAllFromPackage()
+        )
+        Object.values(this.modules).forEach(i =>
+            i.group === 'dialogs' && new LocalPackage(i).importAllFromPackage()
         )
     }
 
-    addExtensions() {
-        this.modules.extentions.forEach(i =>
-            new LocalPackage(i).requirePackage()
-        )
-    }
+    // addExtensions() {
+    //     this.modules.extentions.forEach(i =>
+    //         new LocalPackage(i).requirePackage()
+    //     )
+    // }
+
+    // getAvailableVersions = module => {
+    //     // const updateMeta = await this.getUpdateMeta()
+    //     const groupData = this.availableModules[module.group]
+    //     if (!groupData) {
+    //         return {}
+    //     }
+    //     return groupData[module.name]
+    // }
+
+    // getModuleVersionMeta = async (moduleName, moduleVersion, moduleGroup) => {
+    //     // const updateMeta = await this.getUpdateMeta()
+    //     if (!this.availableModules[moduleGroup]) {
+    //         return null
+    //     }
+    //     if (!this.availableModules[moduleGroup][moduleName]) {
+    //         return null
+    //     }
+    //     return this.availableModules[moduleGroup][moduleName][moduleVersion] || null
+    // }
+
 
     async updateOnePackage(module, versionToUpdate = undefined) {
-        let restartNeeded = false
-
-        let _localPackage = new LocalPackage(module)
-        if (_localPackage.version === '0.0.0' ) {
-            // We have no local package, so we copy it
-            if (_localPackage.copyFromInstaller()) {
-                restartNeeded = true
-                _localPackage = new LocalPackage(module)
-            }
-        }
-        if (_localPackage.sourceType === 'local') {
-            if ( gt(_localPackage.getInstallerVersion(), _localPackage.version)) {
-                restartNeeded = _localPackage.copyFromInstaller()
-            }
-            if (!sessionStore.get("restartNeeded") && restartNeeded) {
-                sessionStore.delete("restartNeeded")
-                sessionStore.set("restartNeeded", true)
-                return
-            }
-        }
-        
-        if (configStore.get("offline")) {
-            return 
-        }
-        const _remotePackage = new RemotePackage(module, this.firebaseClient)
-        await _remotePackage.getRemoteDetails(versionToUpdate)
-        switch (module.update) {
-            case 'auto':
-                if (gt(_remotePackage.version, _localPackage.version)) {
-                    restartNeeded = restartNeeded || await _remotePackage.installPackage()
-                }
-                break
-            case 'manual':
-                if (versionToUpdate !== undefined) {
-                    restartNeeded = restartNeeded || await _remotePackage.installPackage()
-                }
-                ipcRenderer.invoke('core-module-update-available', module)
-                break
-            default:
-                console.warn('Update mode unknown: ', module.update)
-        }
-
-        if (!sessionStore.get("restartNeeded") && restartNeeded) {
-            sessionStore.delete("restartNeeded")
-            sessionStore.set("restartNeeded", true)
-        }
-
+        const availableVersions = this.availableModules[module.name]
+        const LP = new LocalPackage(module, availableVersions)
+        const restartNeeded = await LP.update(this.isOffline, versionToUpdate)
+        sessionStore.set('restartNeeded', restartNeeded)
         return restartNeeded
     }
 
     async updatePackages() {
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
-        sessionStore.delete("restartNeeded")
-        sessionStore.set("restartNeeded", false)
+        sessionStore.set('restartNeeded', false)
+        let restartNeeded = false
 
-        for (var module of this.modules.core) {
-            module.moduleType = 'core'
-            await this.updateOnePackage(module)
+        for (let module of Object.values(this.modules)) {
+            if (module.update === 'auto') {
+                const restartFlag = await this.updateOnePackage(module)
+                restartNeeded = restartFlag || restartNeeded
+            }
         }
-        for (const dialog of this.modules.dialogs) {
-            module.moduleType = 'dialogs'
-            await this.updateOnePackage(dialog)
-        }
+        // for (var module of this.modules.core) {
+
+        //     module.moduleType = 'core'
+        //     await this.updateOnePackage(module)
+        // }
+        // for (const dialog of this.modules.dialogs) {
+        //     module.moduleType = 'dialogs'
+        //     await this.updateOnePackage(dialog)
+        // }
         ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
-
-        return sessionStore.get("restartNeeded")
+        sessionStore.set('restartNeeded', restartNeeded)
+        return restartNeeded
     }
 
-    async getPackagesVersions() {
-        // let modules = PackageManager.getModulesMeta()
-        const process_package = async (package_item, additional_data = {}) => {
-            const {name, version, description} = new LocalPackage(package_item)
-            var _remotePackage;
-            package_item.moduleType = additional_data.type
-            if (configStore.get("offline")) {
-                _remotePackage = {versions: [{name: version}]}
-            } else {
-                ipcRenderer.invoke('status-message', {
-                    message: `Checking version of ${package_item.name} ...`,
-                    nomain: true
-                })
-                _remotePackage = new RemotePackage(package_item, this.firebaseClient)
-                await _remotePackage.getRemoteDetails()
-            }
-            
-            return {
-                name, version, description,
-                available: _remotePackage.versions,
-                ...additional_data
-            }
-        }
+    //     // let modules = PackageManager.getModulesMeta()
+    //     const process_package = async (package_item, additional_data = {}) => {
+    //         const localPackage = new LocalPackage(package_item)
+    //         const {name, version, description} =
+    //         var _remotePackage;
+    //         package_item.moduleType = additional_data.type
+    //         if (this.isOffline) {
+    //             _remotePackage = {versions: [{name: version}]}
+    //         } else {
+    //             ipcRenderer.invoke('status-message', {
+    //                 message: `Checking version of ${package_item.name} ...`,
+    //                 nomain: true
+    //             })
+    //             _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+    //             await _remotePackage.getRemoteDetails()
+    //         }
+    //
+    //         return {
+    //             name, version, description,
+    //             available: _remotePackage.versions,
+    //             ...additional_data
+    //         }
+    //     }
+    //
+    //     const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
+    //     const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
+    //     return [...coreModulesVersions, ...dialogModulesVersions]
+    // }
 
-        const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
-        const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
-        return [...coreModulesVersions, ...dialogModulesVersions]
-    }
-
-    findModule = (moduleType, moduleName) =>
-        this.modules[moduleType]?.find(
-            m => m.name === moduleName
-        )
 
     handleMarketUpdateClick = async el => {
-        const {moduleType, module: moduleName, version: currentVersion} = el.dataset
+        const {name, version, group} = el.dataset
         const selectedVersion = $(el).siblings('select.versionsSelect').val()
-        if (selectedVersion === currentVersion) {
-            new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+        if (selectedVersion === version) {
+            try {
+                new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+            } catch (e) {
+
+            }
         } else {
-            const module = this.findModule(moduleType, moduleName)
-            await updateModule(this, module, selectedVersion)
+            const module = this.modules[name]
+            const restartNeeded = await this.updateOnePackage(module, selectedVersion)
+            restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
         }
+    }
+
+    getUpdateMeta = async (force_update = false) => {
+        if (!force_update) {
+            const savedUpdateMeta = sessionStore.get('moduleAvailableVersions')
+            if (savedUpdateMeta) {
+                return savedUpdateMeta
+            }
+        }
+        // const modulesPath = sessionStore.get("modulespath", "./modules.json")
+        // const modulesMeta = JSON.parse(fs.readFileSync(normalize(modulesPath), 'utf8'))
+        if (this.isOffline) {
+            // sessionStore.set('modules', modulesMeta)
+            return sessionStore.get('moduleAvailableVersions', {})
+        }
+        const user = store.get('user')
+        const app = initializeApp(sessionStore.get("firebaseConfig"))
+        const db = getFirestore(app)
+        const q = query(
+            collection(db, 'modules_cache'),
+            where('subscriptions', 'array-contains-any', ['public']), //todo: pass user subscriptions
+            where('minAppVersion', '==', null),
+            where('minBSkyVersion', '==', null),
+        )
+        // todo: fetch func url if collection undefined
+        // const resp = await fetch(
+        //     `https://querymodules-vzofyvikba-uc.a.run.app?clientAppVersion=${null},bSkyVersion=${null}`,
+        //     )
+        // const modules = await resp.json()
+        try {
+            const results = await getDocs(q)
+            console.log(results)
+            results.forEach(module => {
+                const meta = module.data()
+                const {modules} = meta
+                // sessionStore.set('modules', modulesMeta)
+                console.log('getUpdateMeta', modules)
+                sessionStore.set('moduleAvailableVersions', modules)
+                return modules
+            })
+
+        } catch (e) {
+            console.error(e)
+        }
+        return {}
     }
 
 }

@@ -32,7 +32,7 @@ class LocalPackage {
 
 
         this.path = join(normalize(Render(this.rawPath, {
-            'locals': sessionStore.get('userData'), // todo: check folder exists
+            'locals': sessionStore.get('userData'),
             'appRoot': sessionStore.get('appRoot')
         })))
         // const root = this.artifactType ? `${this.name}.${this.artifactType}` : this.name

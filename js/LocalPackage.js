@@ -183,7 +183,10 @@ class LocalPackage {
         if (isOffline) {
             return false
         }
-
+        if (targetVersion === null || targetVersion === undefined) {
+            console.log('No available versions found for ', this.name)
+            return false
+        }
         const updateModuleMeta = this.availableVersions[targetVersion]
         switch (this.updateStrategy) {
             case 'auto':

@@ -184,7 +184,7 @@ class LocalPackage {
             return false
         }
 
-        const updateModuleMeta = availableVersions[targetVersion]
+        const updateModuleMeta = this.availableVersions[targetVersion]
         switch (this.updateStrategy) {
             case 'auto':
                 if (gt(targetVersion, this.version)) {

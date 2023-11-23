@@ -76,8 +76,10 @@ class LocalPackage {
                         event: "spawn"
                     })
                     try {
+                        console.log(`Invoking [init] from ${importPath}`)
                         value({global})
                     } catch (e) {
+                        console.log(e.stack)
                         ipcRenderer.invoke("debug", {
                             message: `Init error at ${importPath} ${e}`,
                             source: "LocalPackage",

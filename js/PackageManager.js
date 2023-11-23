@@ -1,7 +1,8 @@
 const fs = require("fs");
 const {normalize} = require("path");
 const {initializeApp} = require("firebase/app");
-const {getFirestore, query, collection, where, getDocs} = require("firebase/firestore");
+const {getFirestore, query, collection, doc, where, getDocs, getDoc} = require("firebase/firestore");
+const {getAuth, signInAnonymously, signInWithCustomToken} = require("firebase/auth");
 const {maxSatisfying: semverMaxSatisfying} = require("semver");
 const {packageUpdateSuccessMessage} = require("./handlers");
 const gt = require('semver').gt
@@ -42,7 +43,6 @@ class PackageManager {
         return sessionStore.get('moduleAvailableVersions')
     }
 
-
     init() {
         if ( sessionStore.get("installedPackages") === undefined ) {
             ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
@@ -67,16 +67,18 @@ class PackageManager {
             if (except && i.group == except) {
                 return
             }
-            switch (i.group) {
-                case 'core':
-                    new LocalPackage(i).importAllFromPackage()
-                    break
-                case 'dialogs':
-                    new LocalPackage(i).importAllFromPackage()
-                    break
-                case 'extensions':
-                    new LocalPackage(i).requirePackage()
-                    break
+            if ( Object.keys(sessionStore.get('moduleAvailableVersions')).indexOf(i.name) > -1 || ['local', 'dev'].indexOf(i.storage) > -1 ) {
+                switch (i.group) {
+                    case 'core':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'dialogs':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'extensions':
+                        new LocalPackage(i).requirePackage()
+                        break
+                }
             }
         })
     }
@@ -141,13 +143,33 @@ class PackageManager {
         }
         await ipcRenderer.invoke('status-message', {"message": "Fetching update meta..."})
         const user = store.get('user')
+        store.delete('user', user)
         const appVersion = sessionStore.get('version', null)
         const bSkyVersion = sessionStore.get("installedPackages", {}).BlueSky || null
         const app = initializeApp(sessionStore.get("firebaseConfig"))
+        const auth = getAuth(app)
         const db = getFirestore(app)
+        user.subscriptions = ['public']
+        if (!user.isAnonymous) {
+            try {
+                await signInWithCustomToken(auth, user.customToken)
+                const docRef = doc(db, 'subscriptions', user.email)
+                const result = await getDoc(docRef)
+                for (const i of result.data().activeSubscriptions) {
+                    user.subscriptions.push(i.planName)
+                }
+                if (user.subscriptions.indexOf('public') === -1) { 
+                    user.subscriptions.push('public')
+                }
+                user.subscriptions = user.subscriptions.sort()
+            } catch (ex) { 
+                console.error(ex.trace)
+            }
+        }
+        store.set('user', user)
         const q = query(
             collection(db, 'modules_cache'),
-            where('subscriptions', 'array-contains-any', ['public']), //todo: pass user subscriptions
+            where('subscriptions', '==', user.subscriptions.join(':') ), //todo: pass user subscriptions
             where('minAppVersion', '==', appVersion),
             where('minBSkyVersion', '==', bSkyVersion),
         )

@@ -8,10 +8,15 @@ const {sessionStore} = global
 
 
 class DownloadClient {
-    constructor(updateMeta) {
-        this.meta = updateMeta
-        const {name, artifactType} = this.meta
-        const tmpDir = normalize(join(sessionStore.get('userData'), 'tmp'))
+    constructor(moduleData) {
+        this.moduleData = moduleData
+        const {name} = moduleData
+        const {moduleMeta} = moduleData
+        const {artifactType} = moduleMeta
+        this.artifactType = artifactType
+        // const tmpDir = normalize(join(sessionStore.get('userData'), 'tmp'))
+        // const tmpDir = normalize(join(sessionStore.get('appRoot'), 'tmp'))
+        const tmpDir = normalize(sessionStore.get('appRoot')) // todo: make normal tmp folder
         this.tmpFilePath = normalize(join(tmpDir, `${name}.${artifactType}`))
     }
 
@@ -24,48 +29,11 @@ class DownloadClient {
 class FirebaseDownloadClient extends DownloadClient {
     static firebaseClient = undefined
 
-    constructor(updateMeta) {
-        super(updateMeta)
-        // updateMeta = {
-        //     "productName": "firebase_test",
-        //     "requiredPackages": [],
-        //     "main": "index.js",
-        //     "keywords": [],
-        //     "subscriptions": [
-        //         "public"
-        //     ],
-        //     "author": "aspect13",
-        //     "repository": {},
-        //     "homepage": "https://www.blueskystatistics.com",
-        //     "moduleMeta": {
-        //         "artifactType": "asar",
-        //         "removable": true,
-        //         "storage": "firebase",
-        //         "update": "manual",
-        //         "extra": {
-        //             "remote": "BlueSkyStatistics/core-auth-manager",
-        //             "sourceType": "release"
-        //         },
-        //         "path": "{{locals}}/core-auth-manager.asar"
-        //     },
-        //     "dependencies": {},
-        //     "publishConfig": {
-        //         "registry": "https://npm.pkg.github.com"
-        //     },
-        //     "minBSkyVersion": null,
-        //     "description": "firebase_test",
-        //     "devDependencies": {
-        //         "asar": "^3.2.0"
-        //     },
-        //     "bugs": {
-        //         "url": "https://github.com/BlueSkyStatistics/BlueSkyJS/issues"
-        //     },
-        //     "minAppVersion": null,
-        //     "license": "AGLPL",
-        //     "scripts": {}
-        // }
-        const {name, subscriptions} = updateMeta
+    constructor(moduleData) {
+        super(moduleData)
+        const {name, subscriptions, version} = moduleData
         this.name = name
+        this.version = version
         this.subscriptions = subscriptions
         this.initClient()
     }
@@ -95,13 +63,18 @@ class FirebaseDownloadClient extends DownloadClient {
 
     downloadPackage = async () => {
         for (const sub of this.subscriptions) {
-            const storagePath = [sub, this.name].join('/')
+            const storagePath = [sub, this.name, this.version, `${this.name}.${this.artifactType}`].join('/')
             console.log('downloadPackage', {storagePath})
-            const downloaded = await this.client.downloadFile(storagePath, this.tmpFilePath)
-            if (downloaded) {
-                return true
+            try {
+                const downloadSuccess = await this.client.downloadFile(storagePath, this.tmpFilePath)
+                if (downloadSuccess) {
+                    return true
+                }
+            } catch (e) {
+                console.debug(e)
             }
         }
+        console.error('Could not download ', this.name)
         return false
     }
 }
@@ -135,7 +108,7 @@ class DownloadManager {
         this.main = moduleData.main
         const {moduleMeta} = moduleData
         this.artifactType = moduleMeta.artifactType
-        this.storage = moduleData.storage
+        this.storage = moduleMeta.storage
     }
 
     getDownloadClient() {
@@ -181,13 +154,12 @@ const checkVersionAndUpdateFile = (meta, srcPath, dstPath) => {
     const {name, minBSkyVersion, requiredPackages} = meta
     const installedBSkyVersion = sessionStore.get("version")
     const errors = []
-    if (!(
-        minBSkyVersion === undefined ||
-        // adding .0 because BSky versions are done with only 2 digits
-        semverLte(`${minBSkyVersion}.0`, `${installedBSkyVersion}.0`)
-    )) {
-        errors.push(`package ${this.name} requires BSky R Package version: ${minBSkyVersion} but current version is ${installedBSkyVersion})`)
+    if (!(minBSkyVersion === undefined || minBSkyVersion === null)) {
+        if (!semverLte(`${minBSkyVersion}.0`, `${installedBSkyVersion}.0`)) {
+            errors.push(`package ${this.name} requires BSky R Package version: ${minBSkyVersion} but current version is ${installedBSkyVersion})`)
+        }
     }
+
     requiredPackages?.forEach(item => {
         if (!satisfyVersion(item)) {
             errors.push(`required R Package ${Object.keys(item)[0]} version: ${Object.values(item)[0]} but current version is ${sessionStore.get("installedPackages")[item[0]]}`)

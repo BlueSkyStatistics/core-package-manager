@@ -18,13 +18,19 @@ class firebaseClient{
     // Firebase rule: match /{lic}/{moduleType}/{dialogsType}/{version}/{itemId} {allow read: if true;}
     // ReturnStructure: none, save file from fireBase Store into storeLocation
     async downloadFile(filePath, storeLocation) {
-        var pathReference = ref(this.storage, filePath);
-        console.log(pathReference)
-        var url = await getDownloadURL(pathReference);
-        console.log(url)
-        var response = await axios.get(url, {responseType: "blob"})
-        var arrayBuff = await response.data.arrayBuffer()
-        writeFileSync(normalize(storeLocation), Buffer.from(arrayBuff))
+        try {
+            var pathReference = ref(this.storage, filePath);
+            console.log(pathReference)
+            var url = await getDownloadURL(pathReference);
+            console.log(url)
+            var response = await axios.get(url, {responseType: "blob"})
+            var arrayBuff = await response.data.arrayBuffer()
+            writeFileSync(normalize(storeLocation), Buffer.from(arrayBuff))
+            return true
+        } catch (e) {
+            return false
+        }
+
     }
 
     // async getUserSubscriptions() {

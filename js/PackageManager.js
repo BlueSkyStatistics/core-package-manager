@@ -63,7 +63,7 @@ class PackageManager {
         )
     }
 
-    importPackages(group = undefined) {
+    importPackages(group = undefined, except = undefined) {
         // To avoid async and be prepared for app launch we import whatever we have
         // this.modules.core.forEach(i =>
         //     new LocalPackage(i).importAllFromPackage()
@@ -71,18 +71,20 @@ class PackageManager {
         Object.values(this.modules).forEach(i => {
             if (group && i.group !== group) {
                 return
-            } else {
-                switch (i.group) {
-                    case 'core':
-                        new LocalPackage(i).importAllFromPackage()
-                        break
-                    case 'dialogs':
-                        new LocalPackage(i).importAllFromPackage()
-                        break
-                    case 'extensions':
-                        new LocalPackage(i).requirePackage()
-                        break
-                }
+            } 
+            if (except && i.group == except) {
+                return
+            }
+            switch (i.group) {
+                case 'core':
+                    new LocalPackage(i).importAllFromPackage()
+                    break
+                case 'dialogs':
+                    new LocalPackage(i).importAllFromPackage()
+                    break
+                case 'extensions':
+                    new LocalPackage(i).requirePackage()
+                    break
             }
         })
     }
@@ -123,7 +125,7 @@ class PackageManager {
         return restartNeeded
     }
 
-    async updatePackages(group = undefined) {
+    async updatePackages(group = undefined, except = undefined) {
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.set('restartNeeded', false)
         let restartNeeded = false
@@ -132,16 +134,19 @@ class PackageManager {
             if (module.update === 'auto') {
                 if (group && module.group !== group) {
                     continue
-                } else {
-                    const restartFlag = await this.updateOnePackage(module)
-                    restartNeeded = restartFlag || restartNeeded
                 }
+                if (except && module.group == except) {
+                    continue
+                }
+                const restartFlag = await this.updateOnePackage(module)
+                restartNeeded = restartFlag || restartNeeded
             }
         }
         ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
         sessionStore.set('restartNeeded', restartNeeded)
         return restartNeeded
     }
+
 
     //     // let modules = PackageManager.getModulesMeta()
     //     const process_package = async (package_item, additional_data = {}) => {

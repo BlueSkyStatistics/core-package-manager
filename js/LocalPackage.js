@@ -172,7 +172,6 @@ class LocalPackage {
             if (this.copyFromInstaller()) {
                 return true
             }
-            return false
         }
         // if (this.sourceType === 'local') {
         if (this.storage === 'local') {

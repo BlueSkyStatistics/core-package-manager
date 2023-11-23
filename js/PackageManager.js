@@ -161,10 +161,10 @@ class PackageManager {
                 sessionStore.set('moduleAvailableVersions', modules)
                 return modules
             } else {
-                const body = user?.email ? {'email': user.email} : {'subscriptions': ['public']}
-                body.minAppVersion = appVersion
-                body.minBSkyVersion = bSkyVersion
-                const resp =  await fetch('https://querymodules-vzofyvikba-uc.a.run.app', {
+                const body = user?.email ? {'user': {'email': user.email}} : {'subscriptions': ['public']}
+                body.clientAppVersion = appVersion
+                body.bSkyVersion = bSkyVersion
+                const resp =  await fetch(configStore.get('packageURL'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body)

@@ -183,7 +183,7 @@ class PackageManager {
                 sessionStore.set('moduleAvailableVersions', modules)
                 return modules
             } else {
-                const body = user?.email ? {'user': {'email': user.email}} : {'subscriptions': ['public']}
+                const body = user?.email ? {'user': user} : {'subscriptions': ['public']}
                 body.clientAppVersion = appVersion
                 body.bSkyVersion = bSkyVersion
                 const resp =  await fetch(configStore.get('packageURL'), {

@@ -7,13 +7,13 @@ const {sessionStore} = global
 
 
 class LocalPackage {
+
     get importPath() {
-        return normalize(join(this.path, this.main))
+        return normalize(join(this.path, this.main ? this.main : ''))
     }
 
     constructor(moduleData, availableVersions = {}) {
         this.availableVersions = availableVersions
-
         this.name = moduleData.name
         this.group = moduleData.group
         this.rawPath = moduleData.path
@@ -39,22 +39,23 @@ class LocalPackage {
         // this.root = join(this.path, root)
 
         const packageMetaPath = normalize(join(this.path, 'package.json'))
-        try {
-            const pkgMeta = require(packageMetaPath)
-            const {version, main} = pkgMeta
-            this.meta = pkgMeta
-            this.version = version
-            this.main = main
-            this.exists = true
-            delete require.cache[packageMetaPath]
-        } catch (err) {
-            console.warn(err)
+        if (existsSync(this.path)) {
+            try {
+                const pkgMeta = require(packageMetaPath)
+                const {version, main} = pkgMeta
+                this.meta = pkgMeta
+                this.version = version
+                this.main = main
+                this.exists = true
+                delete require.cache[packageMetaPath]
+            } catch (err) {
+                console.warn(err)
+            }
+            
         }
-
         this.installerPath = Render(this.rawPath, {
             locals: normalize(join(sessionStore.get("appRoot").replace("app.asar", ""), 'package', 'asar'))
         })
-
     }
 
     loadCss = url => {

@@ -34,6 +34,10 @@ class PackageManager {
         return configStore.get('offline', false)
     }
 
+    get packageURL() {
+        return configStore.get('packageURL', '')
+    }
+
     constructor() {
         // this.modules =
         // sessionStore.delete('moduleAvailableVersions')
@@ -59,17 +63,28 @@ class PackageManager {
         )
     }
 
-    importPackages() {
+    importPackages(group = undefined) {
         // To avoid async and be prepared for app launch we import whatever we have
         // this.modules.core.forEach(i =>
         //     new LocalPackage(i).importAllFromPackage()
         // )
-        Object.values(this.modules).forEach(i =>
-            i.group === 'core' && new LocalPackage(i).importAllFromPackage()
-        )
-        Object.values(this.modules).forEach(i =>
-            i.group === 'dialogs' && new LocalPackage(i).importAllFromPackage()
-        )
+        Object.values(this.modules).forEach(i => {
+            if (group && i.group !== group) {
+                return
+            } else {
+                switch (i.group) {
+                    case 'core':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'dialogs':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'extensions':
+                        new LocalPackage(i).requirePackage()
+                        break
+                }
+            }
+        })
     }
 
     // addExtensions() {
@@ -101,32 +116,28 @@ class PackageManager {
 
     async updateOnePackage(module, versionToUpdate = undefined) {
         const availableVersions = this.availableModules[module.name]
+        console.log(availableVersions)
         const LP = new LocalPackage(module, availableVersions)
         const restartNeeded = await LP.update(this.isOffline, versionToUpdate)
         sessionStore.set('restartNeeded', restartNeeded)
         return restartNeeded
     }
 
-    async updatePackages() {
+    async updatePackages(group = undefined) {
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.set('restartNeeded', false)
         let restartNeeded = false
 
         for (let module of Object.values(this.modules)) {
             if (module.update === 'auto') {
-                const restartFlag = await this.updateOnePackage(module)
-                restartNeeded = restartFlag || restartNeeded
+                if (group && module.group !== group) {
+                    continue
+                } else {
+                    const restartFlag = await this.updateOnePackage(module)
+                    restartNeeded = restartFlag || restartNeeded
+                }
             }
         }
-        // for (var module of this.modules.core) {
-
-        //     module.moduleType = 'core'
-        //     await this.updateOnePackage(module)
-        // }
-        // for (const dialog of this.modules.dialogs) {
-        //     module.moduleType = 'dialogs'
-        //     await this.updateOnePackage(dialog)
-        // }
         ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
         sessionStore.set('restartNeeded', restartNeeded)
         return restartNeeded

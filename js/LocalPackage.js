@@ -209,6 +209,7 @@ class LocalPackage {
             default:
                 console.warn('Update mode unknown: ', this.meta.update)
         }
+        return restartNeeded
     }
 }
 

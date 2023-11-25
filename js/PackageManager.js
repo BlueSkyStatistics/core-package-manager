@@ -93,11 +93,33 @@ class PackageManager {
         return restartNeeded
     }
 
+    mergeModules() {
+        const modules = sessionStore.get('modulesContent', {})
+        sessionStore.delete('modulesContent')
+        for (let module_name of Object.keys(this.availableModules)) {
+            if (modules[module_name] != undefined) {
+                continue
+            }
+            const module_data = Object.values(this.availableModules[module_name])[0]
+            if (module_data.moduleMeta?.update !== 'auto') {
+                continue
+            }
+            modules[module_name] = {
+                "name": module_data.name,
+                "group": module_data.group,
+                "minBSkyVersion": module_data.minBSkyVersion,
+                "minAppVersion": module_data.minAppVersion,
+                ...module_data.moduleMeta
+            }
+        }
+        sessionStore.set('modulesContent', modules)
+    }
+
     async updatePackages(group = undefined, except = undefined) {
         await ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.set('restartNeeded', false)
         let restartNeeded = false
-        
+
         for (let module of Object.values(this.modules)) {
             if (module.update === 'auto') {
                 if (group && module.group !== group) {
@@ -132,6 +154,7 @@ class PackageManager {
         }
     }
 
+    // We need to add modules from available modules to modules.json
     getUpdateMeta = async (force_update = false) => {
         if (this.isOffline) {
             return

@@ -142,7 +142,7 @@ class PackageManager {
             }
         }
         await ipcRenderer.invoke('status-message', {"message": "Fetching update meta..."})
-        const user = store.get('user')
+        const user = store.get('user', {isAnonymous: true})
         store.delete('user', user)
         const appVersion = sessionStore.get('version', null)
         const bSkyVersion = sessionStore.get("installedPackages", {}).BlueSky || null

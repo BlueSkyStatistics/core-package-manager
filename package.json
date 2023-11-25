@@ -2,13 +2,32 @@
     "name": "@BlueSkyStatistics/core-package-manager",
     "productName": "Package Manager",
     "description": "Package manager that does updating of all available packages",
+    "group": "init",
+    "main": "index.js",
+    "version": "1.0.1",
+    "subscriptions": ["public"],
+    "moduleMeta": {
+            "path": "{{locals}}/core-package-manager.asar",
+            "storage": "firebase",
+            "update": "auto",
+            "artifactType": "asar",
+            "extra": {
+                "sourceType": "release",
+                "remote": "BlueSkyStatistics/core-package-manager"
+            },
+            "removable": true
+    },
+    "minBSkyVersion": null,
+    "minAppVersion": null,
+    "requiredPackages": [],
+    
+    
     "keywords": [
         "manager",
         "package",
         "update"
     ],
-    "main": "index.js",
-    "version": "1.0.0",
+    
     "author": "aspect13",
     "scripts": {},
     "dependencies": {

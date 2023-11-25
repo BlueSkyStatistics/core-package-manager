@@ -97,7 +97,7 @@ class PackageManager {
         await ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.set('restartNeeded', false)
         let restartNeeded = false
-
+        
         for (let module of Object.values(this.modules)) {
             if (module.update === 'auto') {
                 if (group && module.group !== group) {

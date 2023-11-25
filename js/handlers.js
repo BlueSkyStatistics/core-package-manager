@@ -18,15 +18,15 @@ const packageUpdateVersionInstalledMessage = {
     message: 'You have this version installed'
 }
 
-const updateModule = async (manager, module, version) => {
-    const restartNeeded = await manager.updateOnePackage(module, version)
-    restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
-}
+// const updateModule = async (manager, module, version) => {
+//     const restartNeeded = await manager.updateOnePackage(module, version)
+//     restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
+// }
 
 
 module.exports = {
     packageUpdateVersionInstalledMessage,
-    updateModule
+    packageUpdateSuccessMessage
 }
 
 

@@ -1,16 +1,21 @@
-var path = require('path')
+const fs = require("fs");
+const {normalize} = require("path");
+const {initializeApp} = require("firebase/app");
+const {getFirestore, query, collection, doc, where, getDocs, getDoc} = require("firebase/firestore");
+const {getAuth, signInAnonymously, signInWithCustomToken} = require("firebase/auth");
+const {maxSatisfying: semverMaxSatisfying} = require("semver");
+const {packageUpdateSuccessMessage} = require("./handlers");
 const gt = require('semver').gt
 
+let LocalPackage
 try {
-    var LocalPackage = require("./LocalPackage")
-    var RemotePackage = require("./RemotePackage")
+    LocalPackage = require("./LocalPackage")
     var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
-    var firebaseClient = require("./clients/firebaseClient")
+    // var firebaseClient = require("./clients/firebaseClient")
 } catch(er) {
-    var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
-    var RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
-    var {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
-    var firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
+    LocalPackage = require(normalize(__dirname + "/LocalPackage"));
+    var {packageUpdateVersionInstalledMessage, updateModule} = require(normalize(__dirname + "/handlers"));
+    // var firebaseClient = require(normalize(__dirname + "/clients/firebaseClient"))
 }
 
 
@@ -18,156 +23,186 @@ try {
 //     ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
 // })
 
-const {sessionStore} = global
+const {sessionStore, configStore} = global
 
 class PackageManager {
-    constructor() {
-        this.modules = sessionStore.get("modulesContent")
+
+    get modules() {
+        return sessionStore.get('modulesContent', {})
+    }
+
+    get isOffline() {
+        return configStore.get('offline', false)
+    }
+
+    get packageURL() {
+        return configStore.get('packageURL', '')
+    }
+
+    get availableModules() {
+        return sessionStore.get('moduleAvailableVersions')
     }
 
     init() {
-        if ( sessionStore.get("installedPackages") == undefined ) {
+        if ( sessionStore.get("installedPackages") === undefined ) {
             ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
-        }
-        this.firebaseClient = undefined
-        if (sessionStore.get("firebaseConfig")) {
-            this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
         }
     }
 
     importInit() {
-        this.modules.init?.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
+        Object.values(this.modules).forEach(i =>
+            i.group === 'init' && new LocalPackage(i).importAllFromPackage()
         )
     }
 
-    importPackages() {
+    importPackages(group = undefined, except = undefined) {
         // To avoid async and be prepared for app launch we import whatever we have
-        this.modules.core.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
-        )
-    }
-
-    addExtensions() {
-        this.modules.extentions.forEach(i =>
-            new LocalPackage(i).requirePackage()
-        )
-    }
-
-    async updateOnePackage(module, versionToUpdate = undefined) {
-        let restartNeeded = false
-
-        let _localPackage = new LocalPackage(module)
-        if (_localPackage.version === '0.0.0' ) {
-            // We have no local package, so we copy it
-            if (_localPackage.copyFromInstaller()) {
-                restartNeeded = true
-                _localPackage = new LocalPackage(module)
-            }
-        }
-        if (_localPackage.sourceType === 'local') {
-            if ( gt(_localPackage.getInstallerVersion(), _localPackage.version)) {
-                restartNeeded = _localPackage.copyFromInstaller()
-            }
-            if (!sessionStore.get("restartNeeded") && restartNeeded) {
-                sessionStore.delete("restartNeeded")
-                sessionStore.set("restartNeeded", true)
+        // this.modules.core.forEach(i =>
+        //     new LocalPackage(i).importAllFromPackage()
+        // )
+        Object.values(this.modules).forEach(i => {
+            if (group && i.group !== group) {
+                return
+            } 
+            if (except && i.group == except) {
                 return
             }
-        }
-        
-        if (configStore.get("offline")) {
-            return 
-        }
-        const _remotePackage = new RemotePackage(module, this.firebaseClient)
-        await _remotePackage.getRemoteDetails(versionToUpdate)
-        switch (module.update) {
-            case 'auto':
-                if (gt(_remotePackage.version, _localPackage.version)) {
-                    restartNeeded = restartNeeded || await _remotePackage.installPackage()
+            if ( Object.keys(sessionStore.get('moduleAvailableVersions')).indexOf(i.name) > -1 || ['local', 'dev'].indexOf(i.storage) > -1 ) {
+                switch (i.group) {
+                    case 'core':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'dialogs':
+                        new LocalPackage(i).importAllFromPackage()
+                        break
+                    case 'extensions':
+                        new LocalPackage(i).requirePackage()
+                        break
                 }
-                break
-            case 'manual':
-                if (versionToUpdate !== undefined) {
-                    restartNeeded = restartNeeded || await _remotePackage.installPackage()
-                }
-                ipcRenderer.invoke('core-module-update-available', module)
-                break
-            default:
-                console.warn('Update mode unknown: ', module.update)
-        }
+            }
+        })
+    }
 
-        if (!sessionStore.get("restartNeeded") && restartNeeded) {
-            sessionStore.delete("restartNeeded")
-            sessionStore.set("restartNeeded", true)
-        }
 
+    async updateOnePackage(module, versionToUpdate = undefined) {
+        const availableVersions = this.availableModules[module.name]
+        console.log(availableVersions)
+        const LP = new LocalPackage(module, availableVersions)
+        const restartNeeded = await LP.update(this.isOffline, versionToUpdate)
+        sessionStore.set('restartNeeded', restartNeeded)
         return restartNeeded
     }
 
-    async updatePackages() {
-        ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
-        sessionStore.delete("restartNeeded")
-        sessionStore.set("restartNeeded", false)
-
-        for (var module of this.modules.core) {
-            module.moduleType = 'core'
-            await this.updateOnePackage(module)
-        }
-        for (const dialog of this.modules.dialogs) {
-            module.moduleType = 'dialogs'
-            await this.updateOnePackage(dialog)
-        }
-        ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
-
-        return sessionStore.get("restartNeeded")
-    }
-
-    async getPackagesVersions() {
-        // let modules = PackageManager.getModulesMeta()
-        const process_package = async (package_item, additional_data = {}) => {
-            const {name, version, description} = new LocalPackage(package_item)
-            var _remotePackage;
-            package_item.moduleType = additional_data.type
-            if (configStore.get("offline")) {
-                _remotePackage = {versions: [{name: version}]}
-            } else {
-                ipcRenderer.invoke('status-message', {
-                    message: `Checking version of ${package_item.name} ...`,
-                    nomain: true
-                })
-                _remotePackage = new RemotePackage(package_item, this.firebaseClient)
-                await _remotePackage.getRemoteDetails()
-            }
-            
-            return {
-                name, version, description,
-                available: _remotePackage.versions,
-                ...additional_data
+    async updatePackages(group = undefined, except = undefined) {
+        await ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
+        sessionStore.set('restartNeeded', false)
+        let restartNeeded = false
+        
+        for (let module of Object.values(this.modules)) {
+            if (module.update === 'auto') {
+                if (group && module.group !== group) {
+                    continue
+                }
+                if (except && module.group === except) {
+                    continue
+                }
+                const restartFlag = await this.updateOnePackage(module)
+                restartNeeded = restartFlag || restartNeeded
             }
         }
-
-        const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
-        const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
-        return [...coreModulesVersions, ...dialogModulesVersions]
+        await ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
+        sessionStore.set('restartNeeded', restartNeeded)
+        return restartNeeded
     }
 
-    findModule = (moduleType, moduleName) =>
-        this.modules[moduleType]?.find(
-            m => m.name === moduleName
-        )
 
     handleMarketUpdateClick = async el => {
-        const {moduleType, module: moduleName, version: currentVersion} = el.dataset
+        const {name, version, group} = el.dataset
         const selectedVersion = $(el).siblings('select.versionsSelect').val()
-        if (selectedVersion === currentVersion) {
-            new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+        if (selectedVersion === version) {
+            try {
+                new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+            } catch (e) {
+
+            }
         } else {
-            const module = this.findModule(moduleType, moduleName)
-            await updateModule(this, module, selectedVersion)
+            const module = this.modules[name]
+            const restartNeeded = await this.updateOnePackage(module, selectedVersion)
+            restartNeeded && new BSEvent('notify').emit(packageUpdateSuccessMessage)
         }
     }
 
+    getUpdateMeta = async (force_update = false) => {
+        if (this.isOffline) {
+            return
+        }
+        if (!force_update) {
+            if (this.availableModules) {
+                return this.availableModules
+            }
+        }
+        await ipcRenderer.invoke('status-message', {"message": "Fetching update meta..."})
+        const user = store.get('user')
+        store.delete('user', user)
+        const appVersion = sessionStore.get('version', null)
+        const bSkyVersion = sessionStore.get("installedPackages", {}).BlueSky || null
+        const app = initializeApp(sessionStore.get("firebaseConfig"))
+        const auth = getAuth(app)
+        const db = getFirestore(app)
+        user.subscriptions = ['public']
+        if (!user.isAnonymous) {
+            try {
+                await signInWithCustomToken(auth, user.customToken)
+                const docRef = doc(db, 'subscriptions', user.email)
+                const result = await getDoc(docRef)
+                for (const i of result.data().activeSubscriptions) {
+                    user.subscriptions.push(i.planName)
+                }
+                if (user.subscriptions.indexOf('public') === -1) { 
+                    user.subscriptions.push('public')
+                }
+                user.subscriptions = user.subscriptions.sort()
+            } catch (ex) { 
+                console.error(ex.trace)
+            }
+        }
+        store.set('user', user)
+        const q = query(
+            collection(db, 'modules_cache'),
+            where('subscriptions', '==', user.subscriptions.join(':') ), //todo: pass user subscriptions
+            where('minAppVersion', '==', appVersion),
+            where('minBSkyVersion', '==', bSkyVersion),
+        )
+
+        try {
+            const results = await getDocs(q)
+            const docData = results.docs && results.docs[0]?.data()
+            if (docData) {
+                const {modules} = docData
+                console.log('getUpdateMeta', modules)
+                sessionStore.set('moduleAvailableVersions', modules)
+                return modules
+            } else {
+                const body = user?.email ? {'user': user} : {'subscriptions': ['public']}
+                body.clientAppVersion = appVersion
+                body.bSkyVersion = bSkyVersion
+                const resp =  await fetch(configStore.get('packageURL'), {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                })
+                if (resp.ok) {
+                    const result = await resp.json()
+                    sessionStore.set('moduleAvailableVersions', result)
+                    return result
+                }
+            }
+        } catch (e) {
+            console.error(e)
+        }
+        sessionStore.set('moduleAvailableVersions', {})
+        return {}
+    }
 }
 
 

@@ -1,4 +1,4 @@
-const packageUpdateSuccessMessage = {
+global.packageUpdateSuccessMessage = {
     title: 'Update Successful',
     icon: 'fa fa-exclamation-triangle',
     message: `

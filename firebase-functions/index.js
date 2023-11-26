@@ -39,7 +39,7 @@ const getActiveSubscriptions = async user => {
 }
 
 export const queryModules = onRequest(async (request, response) => {
-    const {user, subscriptions} = request.body
+    let {user, subscriptions} = request.body
     const clientAppVersion = request.body.clientAppVersion || null
     const bSkyVersion = request.body.bSkyVersion || null
 
@@ -99,15 +99,14 @@ export const queryModules = onRequest(async (request, response) => {
             if (!modules[trimmedName]) {
                 modules[trimmedName] = {}
             }
+            // TODO: add check for bskyversion and if fits add to versions
             modules[trimmedName][version] = data
         });
 
         try {
             const docsq = query(collection(db, modulesCacheCollectionName), 
                     where (moduleSubscriptionsKey, '==', activeSubscriptionsStr))
-            console.log("Querying to find if document exists")
             const docsData = await getDocs(docsq);
-            console.log(docsData)
             if (docsData.empty) {
                 await addDoc(collection(db, modulesCacheCollectionName), {
                     [minAppVersion]: clientAppVersion,

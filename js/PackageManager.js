@@ -168,7 +168,7 @@ class PackageManager {
         const user = store.get('user', {isAnonymous: true})
         store.delete('user', user)
         const appVersion = sessionStore.get('version', null)
-        const bSkyVersion = sessionStore.get("installedPackages", {}).BlueSky || null
+        const bSkyVersion = store.get("BSkyVersion") || null
         const app = initializeApp(sessionStore.get("firebaseConfig"))
         const auth = getAuth(app)
         const db = getFirestore(app)

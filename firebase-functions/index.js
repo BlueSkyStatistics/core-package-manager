@@ -43,12 +43,6 @@ export const queryModules = onRequest(async (request, response) => {
     const clientAppVersion = request.body.clientAppVersion || null
     const bSkyVersion = request.body.bSkyVersion || null
 
-    // const clientAppVersion = request.query.clientAppVersion || null;
-    // const bSkyVersion = request.query.bSkyVersion || null;
-    // const user = request.user;
-    // if (user === undefined) {
-    //     console.warn("User undefined");
-    // }
 
     try {
         if (user && user?.customToken) {
@@ -75,20 +69,20 @@ export const queryModules = onRequest(async (request, response) => {
             where(minAppVersion, "==", null)
         ]
         clientAppVersion && clientAppVersionFilter.push(
-            where(minAppVersion, ">=", clientAppVersion)
+            where(minAppVersion, "==", clientAppVersion)
         )
-        // const bSkyVersionFilter = [
-        //     where(minBSkyVersion, "==", null)
-        // ]
-        // bSkyVersion && bSkyVersionFilter.push(
-        //     where(minBSkyVersion, ">=", bSkyVersion)
-        // )
+        const bSkyVersionFilter = [
+            where(minBSkyVersion, "==", null)
+        ]
+        bSkyVersion && bSkyVersionFilter.push(
+            where(minBSkyVersion, "==", bSkyVersion)
+        )
 
         const q = query(collection(db, modulesCollectionName), and(
             where(moduleSubscriptionsKey,
                 "array-contains-any", activeSubscriptions),
             or(...clientAppVersionFilter),
-            // or(...bSkyVersionFilter),
+            or(...bSkyVersionFilter),
         ));
         const snapshot = await getDocs(q);
         const modules = {};
@@ -104,8 +98,11 @@ export const queryModules = onRequest(async (request, response) => {
         });
 
         try {
-            const docsq = query(collection(db, modulesCacheCollectionName), 
-                    where (moduleSubscriptionsKey, '==', activeSubscriptionsStr))
+            const docsq = query(collection(db, modulesCacheCollectionName), and( 
+                    where(moduleSubscriptionsKey, '==', activeSubscriptionsStr),
+                    where(minAppVersion, "==", clientAppVersion),
+                    where(minBSkyVersion, "==", bSkyVersion)
+            ))
             const docsData = await getDocs(docsq);
             if (docsData.empty) {
                 await addDoc(collection(db, modulesCacheCollectionName), {

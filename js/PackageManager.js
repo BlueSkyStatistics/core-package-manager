@@ -76,7 +76,7 @@ class PackageManager {
             }
         }
         
-        if (configStore.get("offline")) {
+        if(true){// (configStore.get("offline")) { // true will make the app offline
             return 
         }
         const _remotePackage = new RemotePackage(module, this.firebaseClient)
@@ -129,7 +129,7 @@ class PackageManager {
             const {name, version, description} = new LocalPackage(package_item)
             var _remotePackage;
             package_item.moduleType = additional_data.type
-            if (configStore.get("offline")) {
+            if(true){// (configStore.get("offline")) { // true will make the app offline
                 _remotePackage = {versions: [{name: version}]}
             } else {
                 ipcRenderer.invoke('status-message', {

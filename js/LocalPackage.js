@@ -205,7 +205,7 @@ class LocalPackage {
                     const installSuccess = await dlManager.installPackage()
                     restartNeeded = restartNeeded || installSuccess
                 }
-                await ipcRenderer.invoke('core-module-update-available', module)
+                await ipcRenderer.invoke('core-module-update-available', this.name)
                 break
             default:
                 console.warn('Update mode unknown: ', this.meta.update)

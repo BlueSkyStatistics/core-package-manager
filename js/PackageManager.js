@@ -64,7 +64,7 @@ class PackageManager {
             if (group && i.group !== group) {
                 return
             } 
-            if (except && i.group == except) {
+            if (except && i.group === except) {
                 return
             }
             if ( Object.keys(sessionStore.get('moduleAvailableVersions')).indexOf(i.name) > -1 || ['local', 'dev'].indexOf(i.storage) > -1 ) {

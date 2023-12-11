@@ -166,7 +166,7 @@ const checkVersionAndUpdateFile = (meta, srcPath, dstPath) => {
         }
     })
     if (errors.length === 0) {
-        ipcRenderer.invoke('status-message', {"message": `"Updating ${name}...`})
+        ipcRenderer.invoke('status-message', {"message": `Updating ${name}...`})
         copyFileSync(normalize(srcPath), dstPath)
     } else {
         ipcRenderer.invoke('bsevent', {'event': 'versionUpdateError', 'data': errors.join('\n')})

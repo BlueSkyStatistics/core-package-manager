@@ -6,7 +6,7 @@ const {getAuth, signInAnonymously, signInWithCustomToken} = require("firebase/au
 const {maxSatisfying: semverMaxSatisfying} = require("semver");
 const {packageUpdateSuccessMessage} = require("./handlers");
 const gt = require('semver').gt
-
+const {menuDefaultOrder} = require("./constants");
 let LocalPackage
 try {
     LocalPackage = require("./LocalPackage")
@@ -41,6 +41,10 @@ class PackageManager {
 
     get availableModules() {
         return sessionStore.get('moduleAvailableVersions')
+    }
+
+    get menuOrder() {
+        return menuDefaultOrder
     }
 
     init() {

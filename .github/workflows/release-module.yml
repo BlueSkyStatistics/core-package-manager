@@ -113,8 +113,21 @@ jobs:
           git commit -a -m "Incremented version"
 
       - name: GitHub Push
+        id: github_push
         if: ${{ inputs.commit_version }}
+        continue-on-error: true
         uses: ad-m/github-push-action@v0.8.0
+
+      - name: GitHub pull request
+        if: ${{ inputs.commit_version }} && ( failure() && steps.github_push.outcome == 'failure' )
+        # https://github.com/marketplace/actions/create-pull-request
+        uses: peter-evans/create-pull-request@v5.0.2
+        with:
+          title: "Version increment"
+          body: "New version: ${{ steps.module_meta.outputs.MODULE_VERSION }} \ Triggered by: ${{ github.actor }}"
+          commit-message: "Incremented version"
+          branch: "version_increment/${{ steps.module_meta.outputs.MODULE_VERSION }}"
+          add-paths: "./package.json"
 
     outputs:
       MODULE_NAME: ${{ steps.module_meta.outputs.MODULE_NAME }}

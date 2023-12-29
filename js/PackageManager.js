@@ -40,7 +40,7 @@ class PackageManager {
     }
 
     get availableModules() {
-        return sessionStore.get('moduleAvailableVersions')
+        return sessionStore.get('moduleAvailableVersions', {})
     }
 
     get menuOrder() {
@@ -71,7 +71,9 @@ class PackageManager {
             if (except && i.group === except) {
                 return
             }
-            if ( Object.keys(sessionStore.get('moduleAvailableVersions')).indexOf(i.name) > -1 || ['local', 'dev'].indexOf(i.storage) > -1 ) {
+            if ( Object.keys(this.availableModules).indexOf(i.name) > -1 || ['local', 'dev'].indexOf(i.storage) > -1 || (
+                this.isOffline && Object.keys(this.modules).indexOf(i.name) > -1
+            ) ) {
                 switch (i.group) {
                     case 'core':
                         new LocalPackage(i).importAllFromPackage()
@@ -98,10 +100,13 @@ class PackageManager {
     }
 
     mergeModules() {
-        const modules = sessionStore.get('modulesContent', {})
+        if (this.isOffline) {
+            return
+        }
+        const modules = this.modules
         sessionStore.delete('modulesContent')
         for (let module_name of Object.keys(this.availableModules)) {
-            if (modules[module_name] != undefined) {
+            if (modules[module_name] !== undefined) {
                 continue
             }
             const module_data = Object.values(this.availableModules[module_name])[0]
@@ -120,6 +125,9 @@ class PackageManager {
     }
 
     async updatePackages(group = undefined, except = undefined) {
+        if (this.isOffline) {
+            return false
+        }
         await ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.set('restartNeeded', false)
         let restartNeeded = false
@@ -161,10 +169,10 @@ class PackageManager {
     // We need to add modules from available modules to modules.json
     getUpdateMeta = async (force_update = false) => {
         if (this.isOffline) {
-            return
+            return {}
         }
         if (!force_update) {
-            if (this.availableModules) {
+            if (Object.keys(this.availableModules) > 0) {
                 return this.availableModules
             }
         }

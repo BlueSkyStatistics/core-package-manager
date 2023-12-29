@@ -1,53 +1,52 @@
 {
-    "name": "@BlueSkyStatistics/core-package-manager",
-    "productName": "Package Manager",
-    "description": "Package manager that does updating of all available packages",
-    "group": "init",
-    "main": "index.js",
-    "version": "1.0.2",
-    "subscriptions": ["public"],
-    "moduleMeta": {
-            "path": "{{locals}}/core-package-manager.asar",
-            "storage": "firebase",
-            "update": "auto",
-            "artifactType": "asar",
-            "extra": {
-                "sourceType": "release",
-                "remote": "BlueSkyStatistics/core-package-manager"
-            },
-            "removable": true
+  "name": "@BlueSkyStatistics/core-package-manager",
+  "productName": "Package Manager",
+  "description": "Package manager that does updating of all available packages",
+  "group": "init",
+  "main": "index.js",
+  "version": "1.0.3",
+  "subscriptions": [
+    "public"
+  ],
+  "moduleMeta": {
+    "path": "{{locals}}/core-package-manager.asar",
+    "storage": "firebase",
+    "update": "auto",
+    "artifactType": "asar",
+    "extra": {
+      "sourceType": "release",
+      "remote": "BlueSkyStatistics/core-package-manager"
     },
-    "minBSkyVersion": null,
-    "minAppVersion": null,
-    "requiredPackages": [],
-    
-    
-    "keywords": [
-        "manager",
-        "package",
-        "update"
-    ],
-    
-    "author": "aspect13",
-    "scripts": {},
-    "dependencies": {
-        "asar": "^3.2.0",
-        "axios": "^1.3.4",
-        "firebase": "^9.19.1",
-        "original-fs": "^1.2.0",
-        "semver": "^7.3.7",
-        "squirrelly": "7.9.2"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/BlueSkyStatistics/core-package-manager.git"
-    },
-    "license": "AGLPL",
-    "bugs": {
-        "url": "https://github.com/BlueSkyStatistics/BlueSkyJS/issues"
-    },
-    "publishConfig": {
-        "registry": "https://npm.pkg.github.com"
-    },
-    "homepage": "https://www.blueskystatistics.com"
+    "removable": true
+  },
+  "minBSkyVersion": null,
+  "minAppVersion": null,
+  "requiredPackages": [],
+  "keywords": [
+    "manager",
+    "package",
+    "update"
+  ],
+  "author": "aspect13",
+  "scripts": {},
+  "dependencies": {
+    "asar": "^3.2.0",
+    "axios": "^1.3.4",
+    "firebase": "^9.19.1",
+    "original-fs": "^1.2.0",
+    "semver": "^7.3.7",
+    "squirrelly": "7.9.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BlueSkyStatistics/core-package-manager.git"
+  },
+  "license": "AGLPL",
+  "bugs": {
+    "url": "https://github.com/BlueSkyStatistics/BlueSkyJS/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "homepage": "https://www.blueskystatistics.com"
 }

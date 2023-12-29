@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4.0.0
 
       - name: Increment version
-        if: ${{ inputs.release_version == '' }}
+        if: inputs.release_version == ''
         run: |
           cat > update_version.py << EOF
           import json
@@ -51,7 +51,7 @@ jobs:
           rm -f update_version.py
 
       - name: Set explicit version
-        if: ${{ inputs.release_version != '' }}
+        if: inputs.release_version != ''
         run: |
           cat > update_version.py << EOF
           import json
@@ -106,7 +106,7 @@ jobs:
           if-no-files-found: error
 
       - name: Commit files
-        if: ${{ inputs.commit_version }}
+        if: inputs.commit_version
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -114,12 +114,12 @@ jobs:
 
       - name: GitHub Push
         id: github_push
-        if: ${{ inputs.commit_version }}
+        if: inputs.commit_version
         continue-on-error: true
         uses: ad-m/github-push-action@v0.8.0
 
       - name: GitHub pull request
-        if: ${{ inputs.commit_version }} && ( failure() && steps.github_push.outcome == 'failure' )
+        if: inputs.commit_version && steps.github_push.outcome == 'failure'
         # https://github.com/marketplace/actions/create-pull-request
         uses: peter-evans/create-pull-request@v5.0.2
         with:
@@ -138,7 +138,7 @@ jobs:
 
 
   release_github:
-    if: ${{ inputs.release_type == 'github' }}
+    if: inputs.release_type == 'github'
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -155,7 +155,7 @@ jobs:
           generate_release_notes: true
 
   release_firebase:
-    if: ${{ inputs.release_type == 'firebase' }}
+    if: inputs.release_type == 'firebase'
     needs: build
     runs-on: ubuntu-latest
     steps:

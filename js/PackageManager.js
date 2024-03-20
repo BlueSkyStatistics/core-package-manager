@@ -27,13 +27,37 @@ class PackageManager {
 
     init() {
         if ( sessionStore.get("installedPackages") == undefined ) {
-            ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
+            //following is removed from v10.3.4, because sendSync() seeems to cause slowness or hang on splash screen (or maybe background process)
+            //instead newSendSync is used which seems to hold up well
+            // ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
         this.firebaseClient = undefined
         if (sessionStore.get("firebaseConfig")) {
             this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
         }
     }
+
+    async newSendSync(params) {
+        try {
+            const result = await ipcRenderer.invoke("listInstalled", {});
+            ipcRenderer.invoke("log", { message: "newSendSync: result..."+result , source: "_PM", event: "updatePackages" })
+            return result;
+          } catch (error) {
+            console.error('Error in synchronous IPC:', error);
+            throw error;
+          }
+    }
+    async createRpkgList() {
+        try {
+            ipcRenderer.invoke('status-message', {"message": "Creating package list..."})
+          const data = await this.newSendSync('fetch-data');
+          ipcRenderer.invoke("log", { message: "createRpkgList: resultdata..."+data , source: "_PM", event: "updatePackages" })
+        return data;
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      }
+
 
     importInit() {
         this.modules.init?.forEach(i =>
@@ -86,6 +110,9 @@ class PackageManager {
                 if (gt(_remotePackage.version, _localPackage.version)) {
                     restartNeeded = restartNeeded || await _remotePackage.installPackage()
                 }
+                else {
+                    ipcRenderer.invoke("log", { message: `Remote version of ${module.name} is not greater than the local (when update:auto)` , source: "_PM", event: "updateOnePackages" })
+                }
                 break
             case 'manual':
                 if (versionToUpdate !== undefined) {
@@ -94,32 +121,52 @@ class PackageManager {
                 ipcRenderer.invoke('core-module-update-available', module)
                 break
             default:
-                console.warn('Update mode unknown: ', module.update)
+                ipcRenderer.invoke("log", { message: `local ${module.name} ` , source: "_PM", event: "updateOnePackages" })
+                console.warn('Update mode unknown: ', module.update, "module name:",module.name)
+                break
         }
 
         if (!sessionStore.get("restartNeeded") && restartNeeded) {
             sessionStore.delete("restartNeeded")
             sessionStore.set("restartNeeded", true)
         }
-
+        ipcRenderer.invoke("log", { message: `restart-needed : ${restartNeeded} for ${module.name}` , source: "_PM", event: "updateOnePackages" })
         return restartNeeded
     }
 
     async updatePackages() {
+        ipcRenderer.invoke("log", { message: "updatePackages:before creating package list..." , source: "_PM", event: "updatePackages" })
+        ipcRenderer.invoke('status-message', {"message": "before creating package list..."})
+
+        if ( sessionStore.get("installedPackages") == undefined ) {
+            const res = await this.createRpkgList()
+            ipcRenderer.invoke("log", { message: "updatePackages:after creating package list...resultRes="+res , source: "_PM", event: "updatePackages" })
+        }
+        else {
+            ipcRenderer.invoke("log", { message: "updatePackages:ELSE installedPackages is already present..." , source: "_PM", event: "updatePackages" })
+        }
+
+        ipcRenderer.invoke("log", { message: "updatePackages:after creating package list..." , source: "_PM", event: "updatePackages" })
+        ipcRenderer.invoke('status-message', {"message": "after creating package list..."})
+        ipcRenderer.invoke("log", { message: "updatePackages:Checking for updates..." , source: "_PM", event: "updatePackages" })
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
         sessionStore.delete("restartNeeded")
         sessionStore.set("restartNeeded", false)
-
+        ipcRenderer.invoke("log", { message: "updatePackages:after restartNeeded..." , source: "_PM", event: "updatePackages" })
         for (var module of this.modules.core) {
             module.moduleType = 'core'
+            ipcRenderer.invoke("log", { message: "updatePackages:before core-updateOnePackage..." , source: "_PM", event: "updatePackages" })
             await this.updateOnePackage(module)
+            ipcRenderer.invoke("log", { message: "updatePackages.:after core-updateOnePackage..." , source: "_PM", event: "updatePackages" })
         }
         for (const dialog of this.modules.dialogs) {
             module.moduleType = 'dialogs'
+            ipcRenderer.invoke("log", { message: "updatePackages:before dialogs-updateOnePackage..." , source: "_PM", event: "updatePackages" })
             await this.updateOnePackage(dialog)
+            ipcRenderer.invoke("log", { message: "updatePackages:after dialogs-updateOnePackage..." , source: "_PM", event: "updatePackages" })
         }
         ipcRenderer.invoke('status-message', {"message": "Update check is done ..."})
-
+        ipcRenderer.invoke("log", { message: "updatePackages.:Update check is done ......" , source: "_PM", event: "updatePackages" })
         return sessionStore.get("restartNeeded")
     }
 
@@ -137,6 +184,7 @@ class PackageManager {
                     nomain: true
                 })
                 _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+                ipcRenderer.invoke("log", { message: `getPackagesVersions: for ${package_item.name}` , source: "_PM", event: "_PM" })
                 await _remotePackage.getRemoteDetails()
             }
             

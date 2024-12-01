@@ -13,15 +13,16 @@ class DialogsPackage extends LocalPackage {
     }
 
     _getNav() {
+        let importPath = this.realImportPath
         let packageNav
         try {
-            ipcRenderer.invoke("log", { message: `Importing from ${this.importPath}` , source: "DialogsPackage", event: "spawn" })
-            packageNav = require(this.importPath).nav
+            ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "_DP", event: "spawn" })
+            packageNav = global.getDialog(importPath, 'nav')
         } catch(ex) {
-            console.warn(`Could not import ${this.importPath}`)
+            console.warn(`Could not import ${importPath}`)
             return []
         }
-        // const pathAddon = this.importPath.replace("nav.js", "")
+        const pathAddon = importPath.replace("nav.js", "")
 
         let packageNavList = []
         if (packageNav.buttons !== undefined) {
@@ -36,16 +37,14 @@ class DialogsPackage extends LocalPackage {
                     if (b.children === undefined) {
                         ipcRenderer.invoke("log", { message: `We should not be here, unless we trying to store some object in the nav` , source: "DialogsPackage", event: "spawn" })
                     } else {
-                        // b.children = b.children.map(c => normalize(join(pathAddon, c)))
-                        b.children = b.children.map(c => normalize(join(this.path, c)))
+                        b.children = b.children.map(c => normalize(join(pathAddon, c)))
                     }
                     return b
                 } else {
-                    // return normalize(join(pathAddon, b))
-                    return normalize(join(this.path, b))
+                    return normalize(join(pathAddon, b))
                 }
             }).filter(b => b !== null)
-            delete require.cache[this.importPath]
+            delete require.cache[importPath]
             return p
         })
         return navList

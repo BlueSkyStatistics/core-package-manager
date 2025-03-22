@@ -4,7 +4,7 @@
   "description": "Package manager that does updating of all available packages",
   "group": "init",
   "main": "index.js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "subscriptions": [
     "public"
   ],

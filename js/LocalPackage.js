@@ -5,8 +5,9 @@
  */
 
 const {Render} = require('squirrelly')
-const {join, normalize} = require('path')
+const {join, normalize, dirname} = require('path')
 const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
+const fs = require("fs");
 const {sessionStore} = global
 
 
@@ -63,9 +64,26 @@ class LocalPackage {
         }
     }
 
+    getLocalVersion = () => {
+        let dirPath = this.realImportPath
+        if (this.realImportPath.endsWith('.js')) {
+            dirPath = dirname(this.realImportPath)
+        }
+        const thePath = normalize(join(dirPath, 'package.json'))
+        try {
+            const pkg = JSON.parse(fs.readFileSync(thePath, 'utf8'))
+            this.version = pkg.version
+            this.description = pkg.description // question: why not pkg.description?
+        } catch (err) {
+            ipcRenderer.invoke("log", { message: `getLocalVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
+            console.warn(err)
+            this.version = '0.0.0'
+        }
+    }
+
     typeMapping = {
         asar: this.getAsarVersion,
-        local: this.getAsarVersion
+        local: this.getLocalVersion
     }
 
     getLocalVersion() {

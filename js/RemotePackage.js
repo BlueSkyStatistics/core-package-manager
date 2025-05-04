@@ -37,15 +37,7 @@ class RemotePackage {
         }))
         
         this._importpath = importpath
-        // this.importPath = Sqrl.Render(this._importpath, {
-        //     locals: this.userDataPath,
-        //     appRoot: this.appRoot
-        // })
         this._devimportpath = devimportpath
-        // this.devImportPath = Sqrl.Render(this._devimportpath, {
-        //     locals: this.userDataPath,
-        //     appRoot: this.appRoot
-        // })
 
         this.storage = storage
         this.artifactType = artifactType
@@ -261,8 +253,8 @@ class RemotePackage {
             release: this.firebaseReleaseVersion
         },
         local: {
-            local: () => {
-            }
+            local: () => {},
+            release: () => {}
         }
     }
 

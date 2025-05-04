@@ -1,3 +1,9 @@
+/**
+  * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
+  * All rights reserved. The copy, modification, or distribution of this file is not
+  * allowed without the prior written permission from BlueSky Statistics, LLC.
+ */
+
 const {join, normalize} = require('path')
 
 try {
@@ -16,8 +22,8 @@ class DialogsPackage extends LocalPackage {
         let importPath = this.realImportPath
         let packageNav
         try {
-            //ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "DialogsPackage", event: "spawn" })
-            packageNav = require(importPath).nav
+            ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "_DP", event: "spawn" })
+            packageNav = global.getDialog(importPath, 'nav')//require(importPath).nav
         } catch(ex) {
             console.warn(`Could not import ${importPath}`)
             return []

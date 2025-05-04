@@ -1,6 +1,13 @@
+/**
+  * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
+  * All rights reserved. The copy, modification, or distribution of this file is not
+  * allowed without the prior written permission from BlueSky Statistics, LLC.
+ */
+
 const {Render} = require('squirrelly')
-const {join, normalize} = require('path')
+const {join, normalize, dirname} = require('path')
 const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
+const fs = require("fs");
 const {sessionStore} = global
 
 
@@ -51,6 +58,24 @@ class LocalPackage {
             this.description = pkg.productName // question: why not pkg.description?
             delete require.cache[normalize(join(this.path, 'package.json'))]
         } catch (err) {
+            ipcRenderer.invoke("log", { message: `getAsarVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
+            console.warn(err)
+            this.version = '0.0.0'
+        }
+    }
+
+    getLocalVersion = () => {
+        let dirPath = this.realImportPath
+        if (this.realImportPath.endsWith('.js')) {
+            dirPath = dirname(this.realImportPath)
+        }
+        const thePath = normalize(join(dirPath, 'package.json'))
+        try {
+            const pkg = JSON.parse(fs.readFileSync(thePath, 'utf8'))
+            this.version = pkg.version
+            this.description = pkg.description // question: why not pkg.description?
+        } catch (err) {
+            ipcRenderer.invoke("log", { message: `getLocalVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
             console.warn(err)
             this.version = '0.0.0'
         }
@@ -58,7 +83,7 @@ class LocalPackage {
 
     typeMapping = {
         asar: this.getAsarVersion,
-        local: this.getAsarVersion
+        local: this.getLocalVersion
     }
 
     getLocalVersion() {
@@ -119,6 +144,7 @@ class LocalPackage {
             console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
             this.handleImport(this.realImportPath)
         } catch (err) {
+            ipcRenderer.invoke("log", { message: `importing Error: ${err.message}` , source: "_LP", event: "_LP" })
             console.log(err)
             console.log(`Importing [importAllFromPackage] from ${this.devImportPath}`)
             this.handleImport(this.devImportPath)
@@ -131,6 +157,7 @@ class LocalPackage {
             console.log(`Importing [requirePackage] from ${this.realImportPath}`)
             require(this.realImportPath)
         } catch (err) {
+            ipcRenderer.invoke("log", { message: `require Error: ${err.message}` , source: "_LP", event: "_LP" })
             console.log(err)
             console.log(`Importing [requirePackage] from ${this.devImportPath}`)
             require(this.devImportPath)
@@ -144,6 +171,8 @@ class LocalPackage {
             delete require.cache[normalize(join(this.path, 'package.json'))]
             return version
         } catch (e) {
+            ipcRenderer.invoke("log", { message: `Cannot get version for : ${this.name}` , source: "_LP", event: "_LP" })
+            ipcRenderer.invoke("log", { message: `Error: ${e.message}` , source: "_LP", event: "_LP" })
             console.warn('Cannot get version for ', this.name)
             return '0.0.0'
         }
@@ -152,10 +181,13 @@ class LocalPackage {
     copyFromInstaller() {
         try {
             if (existsSync(this.installerPath)) {
+                ipcRenderer.invoke("log", { message: `Updating local from installpath for ${this.name}` , source: "_LP", event: "_LP" })
                 copyFileSync(this.installerPath, this.path)
                 return true
             }
         } catch (err) {
+            ipcRenderer.invoke("log", { message: `Error updating local from installpath for ${this.name}` , source: "_LP", event: "_LP" })
+            ipcRenderer.invoke("log", { message: `Error: ${err.message}` , source: "_LP", event: "_LP" })
             console.log(err)
         }
         return false
@@ -164,7 +196,8 @@ class LocalPackage {
     removePackage() {
         try {
             unlinkSync(this.path)
-        } catch {
+        } catch(err) {
+            ipcRenderer.invoke("log", { message: `Unlink Error for local module: ${err.message}` , source: "_LP", event: "_LP" })
             console.log(`Could not remove file ${this.path}`)
         }
     }

@@ -1,3 +1,9 @@
+/**
+  * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
+  * All rights reserved. The copy, modification, or distribution of this file is not
+  * allowed without the prior written permission from BlueSky Statistics, LLC.
+ */
+
 var path = require('path')
 const gt = require('semver').gt
 
@@ -80,21 +86,26 @@ class PackageManager {
 
     async updateOnePackage(module, versionToUpdate = undefined) {
         let restartNeeded = false
-
+        ipcRenderer.invoke("log", { message: `Step1 ${module.name} ` , source: "_PM", event: "updateOnePackages" })
         let _localPackage = new LocalPackage(module)
         if (_localPackage.version === '0.0.0' ) {
             // We have no local package, so we copy it
             if (_localPackage.copyFromInstaller()) {
+                ipcRenderer.invoke("log", { message: `Step1 copy from installer ${module.name} ` , source: "_PM", event: "updateOnePackages" })
                 restartNeeded = true
                 _localPackage = new LocalPackage(module)
             }
         }
         if (_localPackage.sourceType === 'local') {
+            ipcRenderer.invoke("log", { message: `Step1 Local ${module.name} ` , source: "_PM", event: "updateOnePackages" })
             if ( gt(_localPackage.getInstallerVersion(), _localPackage.version)) {
+                ipcRenderer.invoke("log", { message: `Step1 IF1 ${module.name} ` , source: "_PM", event: "updateOnePackages" })
                 restartNeeded = _localPackage.copyFromInstaller()
             }
             if (!sessionStore.get("restartNeeded") && restartNeeded) {
+                ipcRenderer.invoke("log", { message: `Step1 IF2 ${module.name} ` , source: "_PM", event: "updateOnePackages" })
                 sessionStore.delete("restartNeeded")
+                ipcRenderer.invoke("log", { message: `local1  restart true ${module.name} ` , source: "_PM", event: "updateOnePackages" })
                 sessionStore.set("restartNeeded", true)
                 return
             }

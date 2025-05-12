@@ -1,3 +1,9 @@
+/**
+  * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
+  * All rights reserved. The copy, modification, or distribution of this file is not
+  * allowed without the prior written permission from BlueSky Statistics, LLC.
+ */
+
 const {Render} = require('squirrelly')
 const {join, normalize} = require('path')
 const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
@@ -142,8 +148,11 @@ class LocalPackage {
 
     getInstallerVersion() {
         try {
+            ipcRenderer.invoke("log", { message: `Pkg Instlr ver1: ${this.installerPath}` , source: "_LP", event: "_LP" })
             const pkg = require(normalize(join(this.installerPath, 'package.json')))
+            ipcRenderer.invoke("log", { message: `Pkg Instlr ver2: ${this.path}` , source: "_LP", event: "_LP" })
             const {version} = pkg
+
             delete require.cache[normalize(join(this.path, 'package.json'))]
             return version
         } catch (e) {

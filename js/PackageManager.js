@@ -161,7 +161,7 @@ class PackageManager {
         ipcRenderer.invoke('status-message', {"message": "after creating package list..."})
         ipcRenderer.invoke("log", { message: "updatePackages:Checking for updates..." , source: "_PM", event: "updatePackages" })
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
-        sessionStore.delete("restartNeeded")
+        //sessionStore.delete("restartNeeded")
         sessionStore.set("restartNeeded", false)
         ipcRenderer.invoke("log", { message: "updatePackages:after restartNeeded..." , source: "_PM", event: "updatePackages" })
         for (var module of this.modules.core) {

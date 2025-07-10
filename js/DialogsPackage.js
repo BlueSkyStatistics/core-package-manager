@@ -43,11 +43,23 @@ class DialogsPackage extends LocalPackage {
                     if (b.children === undefined) {
                         ipcRenderer.invoke("log", { message: `We should not be here, unless we trying to store some object in the nav` , source: "DialogsPackage", event: "spawn" })
                     } else {
-                        b.children = b.children.map(c => normalize(join(pathAddon, c)))
+                        b.children = b.children.map(c => {
+                            if (typeof c !== 'string') return c;
+                            if (path.isAbsolute(c) || c.startsWith(pathAddon)) {
+                                return normalize(c);
+                            } else {
+                                return normalize(join(pathAddon, c));
+                            }
+                        })
                     }
                     return b
                 } else {
-                    return normalize(join(pathAddon, b))
+                    if (typeof b !== 'string') return b;
+                    if (path.isAbsolute(b) || b.startsWith(pathAddon)) {
+                        return normalize(b);
+                    } else {
+                        return normalize(join(pathAddon, b));
+                    }
                 }
             }).filter(b => b !== null)
             delete require.cache[importPath]

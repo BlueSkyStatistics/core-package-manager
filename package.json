@@ -12,12 +12,7 @@
     "author": "aspect13",
     "scripts": {},
     "dependencies": {
-        "asar": "^3.2.0",
-        "axios": "^1.3.4",
-        "firebase": "^9.19.1",
-        "original-fs": "^1.2.0",
-        "semver": "^7.3.7",
-        "squirrelly": "7.9.2"
+        "asar": "^3.2.0"
     },
     "repository": {
         "type": "git",

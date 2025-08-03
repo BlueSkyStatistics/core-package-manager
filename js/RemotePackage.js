@@ -7,9 +7,8 @@
 const axios = require('axios')
 const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
 const {Render} = require('squirrelly')
-const {writeFileSync, copyFileSync, unlink} = require('original-fs')
-const {normalize, join} = require("path")
-const path = require("path");
+const {writeFileSync, copyFileSync, unlink} = require('fs')
+const {normalize, join, parse} = require("path")
 const {sessionStore} = global
 
 const satisfyVersion = pkgName => {
@@ -209,9 +208,9 @@ class RemotePackage {
         ipcRenderer.invoke("log", { message: "firebaseReleaseAsarInstall 1:" , source: "_RP", event: "firebaseReleaseAsarInstall" })
         const {filePath, filename} = this.details
         const fullPath = filePath + '/' + filename
-        const formattedName = `${path.parse(this.path).name}_${this.version}.asar`
-        const formattedPath = path.parse(this.path).dir
-        const asarPath = path.join(formattedPath, formattedName)
+        const formattedName = `${parse(this.path).name}_${this.version}.asar`
+        const formattedPath = parse(this.path).dir
+        const asarPath = join(formattedPath, formattedName)
         // console.log(fullPath)
         try {
             await this.firebaseClient.downloadFile(fullPath, asarPath)

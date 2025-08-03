@@ -8,7 +8,7 @@ const axios = require('axios')
 var { initializeApp } = require("firebase/app");
 var { getStorage, ref, getDownloadURL, listAll} = require("firebase/storage");
 var { getFirestore,  doc, getDoc } = require("firebase/firestore");
-const {writeFileSync} = require('original-fs')
+const {writeFileSync} = require('fs')
 const {normalize} = require("path")
 
 

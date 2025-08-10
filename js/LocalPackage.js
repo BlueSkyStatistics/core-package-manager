@@ -6,7 +6,7 @@
 
 const {Render} = require('squirrelly')
 const {join, normalize, dirname} = require('path')
-const {existsSync, unlinkSync, copyFileSync} = require('fs')
+const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
 const fs = require("fs");
 const {sessionStore} = global
 
@@ -40,8 +40,8 @@ class LocalPackage {
         this.removable = removable
         this.version = '0.0.0'
 
-        // this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
-        this.realImportPath = this.devImportPath
+        this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
+        // this.realImportPath = this.devImportPath
 
 
         // this.type = packageJson.artifactType
@@ -167,6 +167,7 @@ class LocalPackage {
 
     getInstallerVersion() {
         try {
+            ipcRenderer.invoke("log", { message: `========== Installer version : ${this.name} :: ${this.installerPath}` , source: "_LP", event: "_LP" })
             const pkg = require(normalize(join(this.installerPath, 'package.json')))
             const {version} = pkg
             delete require.cache[normalize(join(this.path, 'package.json'))]

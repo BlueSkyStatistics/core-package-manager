@@ -21,7 +21,14 @@ class DialogsPackage extends LocalPackage {
     _getNav() {
         let importPath = this.realImportPath
         let packageNav
+
+        //following 3 lines (with ipc 'status-message' below) just to show status message on the splash
+        const parts = importPath.split(/[/\\]/); // split on both \ and /
+        const asarIndex = parts.findIndex(p => p.endsWith(".asar"));
+        let asarname = asarIndex !== -1 ? parts[asarIndex] : "loading...";
+
         try {
+            ipcRenderer.invoke('status-message', {"message": `Importing ${asarname} ...`})
             ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "_DP", event: "spawn" })
             packageNav = global.getDialog(importPath, 'nav')//require(importPath).nav
         } catch(ex) {

@@ -149,8 +149,11 @@ class LocalPackage {
 
     getInstallerVersion() {
         try {
+            ipcRenderer.invoke("log", { message: `Pkg Instlr ver1: ${this.installerPath}` , source: "_LP", event: "_LP" })
             const pkg = require(normalize(join(this.installerPath, 'package.json')))
+            ipcRenderer.invoke("log", { message: `Pkg Instlr ver2: ${this.path}` , source: "_LP", event: "_LP" })
             const {version} = pkg
+
             delete require.cache[normalize(join(this.path, 'package.json'))]
             return version
         } catch (e) {

@@ -123,7 +123,8 @@ class LocalPackage {
     importAllFromPackage() {
         // console.log(sessionStore.get("appMode"))
         try {
-            console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
+            //console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
+			ipcRenderer.invoke("log", { message: `Importing [importAllFromPackage] from ${this.realImportPath}` , source: "_LP", event: "_LP" })
             this.handleImport(this.realImportPath)
         } catch (err) {
             ipcRenderer.invoke("log", { message: `importing Error: ${err.message}` , source: "_LP", event: "_LP" })

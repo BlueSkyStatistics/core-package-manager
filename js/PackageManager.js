@@ -58,6 +58,7 @@ class PackageManager {
             ipcRenderer.invoke('status-message', {"message": "Creating package list..."})
           const data = await this.newSendSync('fetch-data');
           ipcRenderer.invoke("log", { message: "createRpkgList: resultdata..."+data , source: "_PM", event: "updatePackages" })
+          ipcRenderer.invoke('status-message', {"message": "Package list created..."})
         return data;
         } catch (error) {
           console.error('Error fetching data:', error);

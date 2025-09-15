@@ -12,7 +12,7 @@ const {sessionStore} = global
 
 
 class LocalPackage {
-    constructor({name, path, importpath, devimportpath, storage,
+    constructor({name, path, importpath, storage,
                     artifactType, sourceType, remote, update, removable}) {
         this.userDataPath = sessionStore.get("userData")
         this.appRoot = sessionStore.get("appRoot")
@@ -27,11 +27,6 @@ class LocalPackage {
             locals: this.userDataPath,
             appRoot: this.appRoot
         }))
-        this._devimportpath = devimportpath
-        this.devImportPath = normalize(Render(this._devimportpath, {
-            locals: this.userDataPath,
-            appRoot: this.appRoot
-        }))
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.storage = storage
@@ -39,10 +34,6 @@ class LocalPackage {
         this.update = update
         this.removable = removable
         this.version = '0.0.0'
-
-        this.realImportPath = sessionStore.get("appMode") === 'prod' ? this.importPath : this.devImportPath
-        // this.realImportPath = this.devImportPath
-
 
         // this.type = packageJson.artifactType
         this.description = ""
@@ -66,9 +57,9 @@ class LocalPackage {
     }
 
     getLocalVersion = () => {
-        let dirPath = this.realImportPath
-        if (this.realImportPath.endsWith('.js')) {
-            dirPath = dirname(this.realImportPath)
+        let dirPath = this.importPath
+        if (dirPath.endsWith('.js')) {
+            dirPath = dirname(this.importPath)
         }
         const thePath = normalize(join(dirPath, 'package.json'))
         try {
@@ -94,12 +85,12 @@ class LocalPackage {
     get originalJson() {
         const {
             name, _path: path, _importpath: importpath,
-            _devimportpath: devimportpath, storage,
+            storage,
             artifactType, sourceType, remote,
             update, removable
         } = this
         return {
-            name, path, importpath, devimportpath, storage,
+            name, path, importpath, storage,
             artifactType, sourceType, remote, update, removable
         }
     }
@@ -140,29 +131,13 @@ class LocalPackage {
     }
 
     importAllFromPackage() {
-        // console.log(sessionStore.get("appMode"))
-        try {
-            console.log(`Importing [importAllFromPackage] from ${this.realImportPath}`)
-            this.handleImport(this.realImportPath)
-        } catch (err) {
-            ipcRenderer.invoke("log", { message: `importing Error: ${err.message}` , source: "_LP", event: "_LP" })
-            console.log(err)
-            console.log(`Importing [importAllFromPackage] from ${this.devImportPath}`)
-            this.handleImport(this.devImportPath)
-        }
-
+        console.log(`Importing [importAllFromPackage] from ${this.importPath}`)
+        this.handleImport(this.importPath)
     }
 
     requirePackage() {
-        try {
-            console.log(`Importing [requirePackage] from ${this.realImportPath}`)
-            require(this.realImportPath)
-        } catch (err) {
-            ipcRenderer.invoke("log", { message: `require Error: ${err.message}` , source: "_LP", event: "_LP" })
-            console.log(err)
-            console.log(`Importing [requirePackage] from ${this.devImportPath}`)
-            require(this.devImportPath)
-        }
+        console.log(`Importing [requirePackage] from ${this.importPath}`)
+        require(this.importPath)
     }
 
     getInstallerVersion() {

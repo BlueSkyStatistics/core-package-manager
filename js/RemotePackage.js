@@ -23,7 +23,7 @@ const satisfyVersion = pkgName => {
 }
 
 class RemotePackage {
-    constructor({name, path, importpath, devimportpath, storage, artifactType, sourceType, remote, update, removable, moduleType}, firebaseClient) {
+    constructor({name, path, importpath, storage, artifactType, sourceType, remote, update, removable, moduleType}, firebaseClient) {
         this.userDataPath = sessionStore.get("userData")
         this.appRoot = sessionStore.get("appRoot")
         this.firebaseClient = firebaseClient
@@ -35,9 +35,6 @@ class RemotePackage {
             locals: this.userDataPath,
         }))
         
-        this._importpath = importpath
-        this._devimportpath = devimportpath
-
         this.storage = storage
         this.artifactType = artifactType
         this.sourceType = sourceType

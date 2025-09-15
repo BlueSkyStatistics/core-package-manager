@@ -19,7 +19,7 @@ class DialogsPackage extends LocalPackage {
     }
 
     _getNav() {
-        let importPath = this.realImportPath
+        const importPath = this.importPath
         let packageNav
         try {
             ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "_DP", event: "spawn" })

@@ -149,13 +149,13 @@ class PackageManager {
         ipcRenderer.invoke("log", { message: "updatePackages:before creating package list..." , source: "_PM", event: "updatePackages" })
         ipcRenderer.invoke('status-message', {"message": "before creating package list..."})
 
-        if ( sessionStore.get("installedPackages") == undefined ) {
-            const res = await this.createRpkgList()
-            ipcRenderer.invoke("log", { message: "updatePackages:after creating package list...resultRes="+res , source: "_PM", event: "updatePackages" })
-        }
-        else {
-            ipcRenderer.invoke("log", { message: "updatePackages:ELSE installedPackages is already present..." , source: "_PM", event: "updatePackages" })
-        }
+        // if ( sessionStore.get("installedPackages") == undefined ) {
+        //     const res = await this.createRpkgList()
+        //     ipcRenderer.invoke("log", { message: "updatePackages:after creating package list...resultRes="+res , source: "_PM", event: "updatePackages" })
+        // }
+        // else {
+        //     ipcRenderer.invoke("log", { message: "updatePackages:ELSE installedPackages is already present..." , source: "_PM", event: "updatePackages" })
+        // }
 
         ipcRenderer.invoke("log", { message: "updatePackages:after creating package list..." , source: "_PM", event: "updatePackages" })
         ipcRenderer.invoke('status-message', {"message": "after creating package list..."})

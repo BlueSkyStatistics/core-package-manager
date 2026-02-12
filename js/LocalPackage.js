@@ -38,7 +38,8 @@ class LocalPackage {
         // this.type = packageJson.artifactType
         this.description = ""
         this.installerPath = Render(this._path, {
-            locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar'))
+            locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar')),
+            'appRoot': this.appRoot
         })
         this.getLocalVersion()
     }

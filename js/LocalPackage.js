@@ -12,21 +12,29 @@ const {sessionStore} = global
 
 
 class LocalPackage {
-    constructor({name, path, importpath, storage,
-                    artifactType, sourceType, remote, update, removable}) {
+    get importPath() {
+        return this.main ? require.resolve(join(this.path, this.main)) : normalize(this.path)
+    }
+    constructor({
+                    name, path, storage,
+                    artifactType, sourceType,
+                    remote, update, removable,
+    }) {
         this.userDataPath = sessionStore.get("userData")
         this.appRoot = sessionStore.get("appRoot")
         this.name = name
         this._path = path
         this.path = normalize(Render(this._path, {
-            'locals': this.userDataPath,
-            'appRoot': this.appRoot
-        }))
-        this._importpath = importpath
-        this.importPath = normalize(Render(this._importpath, {
             locals: this.userDataPath,
             appRoot: this.appRoot
         }))
+        // this.importPath = path.join(this.path, this.main)
+        // this._importpath = importpath
+        // this.importPath = normalize(Render(this._importpath, {
+        //     locals: this.userDataPath,
+        //     appRoot: this.appRoot
+        // }))
+        console.debug(`LocalPackage ${name} (${this.path})`)
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.storage = storage
@@ -41,14 +49,15 @@ class LocalPackage {
             locals: normalize(join(this.appRoot.replace("app.asar", ""), 'package', 'asar')),
             'appRoot': this.appRoot
         })
-        this.getLocalVersion()
+        this.getVersion()
     }
 
     getAsarVersion = () => {
         try {
             const pkg = require(normalize(join(this.path, 'package.json')))
+            this.main = pkg.main
             this.version = pkg.version
-            this.description = pkg.productName // question: why not pkg.description?
+            this.description = pkg.description // question: why not pkg.description?
             delete require.cache[normalize(join(this.path, 'package.json'))]
         } catch (err) {
             ipcRenderer.invoke("log", { message: `getAsarVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
@@ -65,8 +74,9 @@ class LocalPackage {
         const thePath = normalize(join(dirPath, 'package.json'))
         try {
             const pkg = JSON.parse(fs.readFileSync(thePath, 'utf8'))
+            this.main = pkg.main
             this.version = pkg.version
-            this.description = pkg.description // question: why not pkg.description?
+            this.description = pkg.description
         } catch (err) {
             ipcRenderer.invoke("log", { message: `getLocalVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
             console.warn(err)
@@ -79,19 +89,19 @@ class LocalPackage {
         local: this.getLocalVersion
     }
 
-    getLocalVersion() {
+    getVersion() {
         return this.typeMapping[this.artifactType]()
     }
 
     get originalJson() {
         const {
-            name, _path: path, _importpath: importpath,
+            name, _path: path,
             storage,
             artifactType, sourceType, remote,
             update, removable
         } = this
         return {
-            name, path, importpath, storage,
+            name, path, storage,
             artifactType, sourceType, remote, update, removable
         }
     }

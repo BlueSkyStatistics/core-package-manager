@@ -88,7 +88,8 @@ class PackageManager {
     }
 
     addExtensions() {
-        this.modules.extentions.forEach(i =>
+        const extensions = this.modules.extentions || []
+        extensions.forEach(i =>
             new LocalPackage(i).requirePackage()
         )
     }

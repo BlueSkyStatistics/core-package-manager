@@ -1,7 +1,7 @@
 /**
-  * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
-  * All rights reserved. The copy, modification, or distribution of this file is not
-  * allowed without the prior written permission from BlueSky Statistics, LLC.
+ * This file is protected by copyright (c) 2023-2025 by BlueSky Statistics, LLC.
+ * All rights reserved. The copy, modification, or distribution of this file is not
+ * allowed without the prior written permission from BlueSky Statistics, LLC.
  */
 
 const {join, normalize, dirname} = require('path')
@@ -23,9 +23,9 @@ class DialogsPackage extends LocalPackage {
         const importPath = this.importPath
         let packageNav
         try {
-            ipcRenderer.invoke("log", { message: `Importing from ${importPath}` , source: "_DP", event: "spawn" })
+            ipcRenderer.invoke("log", {message: `Importing from ${importPath}`, source: "_DP", event: "spawn"})
             packageNav = global.getDialog(importPath, 'nav')//require(importPath).nav
-        } catch(ex) {
+        } catch (ex) {
             console.warn(`Could not import ${importPath}\n`, ex)
             return []
         }
@@ -42,7 +42,11 @@ class DialogsPackage extends LocalPackage {
             p.buttons = p.buttons.map(b => {
                 if (typeof b === 'object') {
                     if (b.children === undefined) {
-                        ipcRenderer.invoke("log", { message: `We should not be here, unless we trying to store some object in the nav` , source: "DialogsPackage", event: "spawn" })
+                        ipcRenderer.invoke("log", {
+                            message: `We should not be here, unless we trying to store some object in the nav`,
+                            source: "DialogsPackage",
+                            event: "spawn"
+                        })
                     } else {
                         b.children = b.children.map(c => {
                             if (typeof c !== 'string') return c;
@@ -63,7 +67,7 @@ class DialogsPackage extends LocalPackage {
                     }
                 }
             }).filter(b => b !== null)
-            delete require.cache[importPath]
+            // delete require.cache[importPath]
             return p
         })
         return navList

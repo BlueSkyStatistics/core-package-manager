@@ -38,7 +38,7 @@ class RemotePackage {
         this.storage = storage
         this.artifactType = artifactType
         this.sourceType = sourceType
-        this.remote = remote.trim()
+        this.remote = remote?.trim()
         this.remotePath = normalize(Render(this.urlMapped[this.storage], {repo: this.remote}))
 
         this.update = update

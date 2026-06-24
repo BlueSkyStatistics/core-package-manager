@@ -38,7 +38,7 @@ class LocalPackage {
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.storage = storage
-        this.remote = remote.trim()
+        this.remote = remote?.trim()
         this.update = update
         this.removable = removable
         this.version = '0.0.0'
@@ -90,7 +90,13 @@ class LocalPackage {
     }
 
     getVersion() {
-        return this.typeMapping[this.artifactType]()
+        switch (this.artifactType) {
+            case 'asar':
+                return this.getAsarVersion()
+            case 'local':
+            default:
+                return this.getLocalVersion()
+        }
     }
 
     get originalJson() {

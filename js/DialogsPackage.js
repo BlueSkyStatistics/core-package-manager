@@ -24,7 +24,7 @@ class DialogsPackage extends LocalPackage {
         let packageNav
         try {
             ipcRenderer.invoke("log", {message: `Importing from ${importPath}`, source: "_DP", event: "spawn"})
-            packageNav = global.getDialog(importPath, 'nav')//require(importPath).nav
+            packageNav = global.getDialog(importPath, 'nav').element
         } catch (ex) {
             console.warn(`Could not import ${importPath}\n`, ex)
             return []

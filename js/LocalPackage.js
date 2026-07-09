@@ -34,7 +34,7 @@ class LocalPackage {
         //     locals: this.userDataPath,
         //     appRoot: this.appRoot
         // }))
-        console.debug(`LocalPackage ${name} (${this.path})`)
+        // console.debug(`LocalPackage ${name} (${this.path})`)
         this.artifactType = artifactType
         this.sourceType = sourceType
         this.storage = storage

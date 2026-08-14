@@ -4,43 +4,47 @@
   * allowed without the prior written permission from BlueSky Statistics, LLC.
  */
 
-var path = require('path')
+const path = require('path')
+const fs = require("fs");
 const gt = require('semver').gt
 
-try {
-    var LocalPackage = require("./LocalPackage")
-    var RemotePackage = require("./RemotePackage")
-    var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
-    var firebaseClient = require("./clients/firebaseClient")
-} catch (er) {
-    var LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
-    var RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
-    var {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
-    var firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
-}
+// try {
+//     var LocalPackage = require("./LocalPackage")
+//     var RemotePackage = require("./RemotePackage")
+//     var {packageUpdateVersionInstalledMessage, updateModule} = require("./handlers");
+//     var firebaseClient = require("./clients/firebaseClient")
+// } catch (er) {
+const LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
+const RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
+const {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
+const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
+// }
 
 
 // ipcRenderer.on('versionUpdateError', (event, message) => {
 //     ipcRenderer.invoke('bsevent', {event: 'errormessage', data: { title: "Package Update Error", message: message }})
 // })
 
-const {sessionStore} = global
 
 class PackageManager {
-    constructor() {
-        this.modules = sessionStore.get("modulesContent")
+    constructor({sessionStore, configStore, pluginsPath = undefined}) {
+        this.sessionStore = sessionStore
+        this.configStore = configStore
+        this.modules = this.sessionStore.get("modulesContent")
+        this.pluginsPath = pluginsPath
     }
 
     init() {
-        if (sessionStore.get("installedPackages") == undefined) {
+        if (this.sessionStore.get("installedPackages") == undefined) {
             //following is removed from v10.3.4, because sendSync() seeems to cause slowness or hang on splash screen (or maybe background process)
             //instead newSendSync is used which seems to hold up well
             // ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
         this.firebaseClient = undefined
-        if (sessionStore.get("firebaseConfig")) {
-            this.firebaseClient = new firebaseClient(sessionStore.get("firebaseConfig"), sessionStore.get('firebaseBucket'))
+        if (this.sessionStore.get("firebaseConfig")) {
+            this.firebaseClient = new firebaseClient(this.sessionStore.get("firebaseConfig"), this.sessionStore.get('firebaseBucket'))
         }
+
     }
 
     async newSendSync(params) {
@@ -94,6 +98,18 @@ class PackageManager {
         )
     }
 
+    importPlugins() {
+        this.pluginsPath !== undefined && fs.readdirSync(this.pluginsPath)
+            .filter(f => f.endsWith('.js') || f.endsWith('.asar'))
+            .map(f => ({
+                artifactType: f.endsWith('.js') ? 'js' : 'asar',
+                name: path.basename(f, path.extname(f)),
+                path: path.normalize(path.join(this.pluginsPath, f))
+            }))
+            .forEach(i => new LocalPackage(i).importAllFromPackage()
+        )
+    }
+
     async updateOnePackage(module, versionToUpdate = undefined) {
         let restartNeeded = false
 
@@ -109,14 +125,14 @@ class PackageManager {
             if (gt(_localPackage.getInstallerVersion(), _localPackage.version)) {
                 restartNeeded = _localPackage.copyFromInstaller()
             }
-            if (!sessionStore.get("restartNeeded") && restartNeeded) {
-                sessionStore.delete("restartNeeded")
-                sessionStore.set("restartNeeded", true)
+            if (!this.sessionStore.get("restartNeeded") && restartNeeded) {
+                this.sessionStore.delete("restartNeeded")
+                this.sessionStore.set("restartNeeded", true)
                 return
             }
         }
 
-        if (configStore.get("offline")) {
+        if (this.configStore.get("offline")) {
             return
         }
         const _remotePackage = new RemotePackage(module, this.firebaseClient)
@@ -145,9 +161,9 @@ class PackageManager {
                 break
         }
 
-        if (!sessionStore.get("restartNeeded") && restartNeeded) {
-            sessionStore.delete("restartNeeded")
-            sessionStore.set("restartNeeded", true)
+        if (!this.sessionStore.get("restartNeeded") && restartNeeded) {
+            this.sessionStore.delete("restartNeeded")
+            this.sessionStore.set("restartNeeded", true)
         }
         ipcRenderer.invoke("log", {
             message: `restart-needed : ${restartNeeded} for ${module.name}`,
@@ -165,7 +181,7 @@ class PackageManager {
         })
         ipcRenderer.invoke('status-message', {"message": "before creating package list..."})
 
-        if (sessionStore.get("installedPackages") == undefined) {
+        if (this.sessionStore.get("installedPackages") == undefined) {
             const res = await this.createRpkgList()
             ipcRenderer.invoke("log", {
                 message: "updatePackages:after creating package list...resultRes=" + res,
@@ -192,8 +208,8 @@ class PackageManager {
             event: "updatePackages"
         })
         ipcRenderer.invoke('status-message', {"message": "Checking for updates..."})
-        sessionStore.delete("restartNeeded")
-        sessionStore.set("restartNeeded", false)
+        this.sessionStore.delete("restartNeeded")
+        this.sessionStore.set("restartNeeded", false)
         ipcRenderer.invoke("log", {
             message: "updatePackages:after restartNeeded...",
             source: "_PM",
@@ -233,7 +249,7 @@ class PackageManager {
             source: "_PM",
             event: "updatePackages"
         })
-        return sessionStore.get("restartNeeded")
+        return this.sessionStore.get("restartNeeded")
     }
 
     async getPackagesVersions() {
@@ -242,7 +258,7 @@ class PackageManager {
             const {name, version, description} = new LocalPackage(package_item)
             var _remotePackage;
             package_item.moduleType = additional_data.type
-            if (configStore.get("offline")) {
+            if (this.configStore.get("offline")) {
                 _remotePackage = {versions: [{name: version}]}
             } else {
                 ipcRenderer.invoke('status-message', {
@@ -279,13 +295,12 @@ class PackageManager {
         const {moduleType, module: moduleName, version: currentVersion} = el.dataset
         const selectedVersion = $(el).siblings('select.versionsSelect').val()
         if (selectedVersion === currentVersion) {
-            new BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
+            global.BSEvent && new global.BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
         } else {
             const module = this.findModule(moduleType, moduleName)
             await updateModule(this, module, selectedVersion)
         }
     }
-
 }
 
 

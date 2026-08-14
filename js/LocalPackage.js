@@ -61,7 +61,7 @@ class LocalPackage {
             delete require.cache[normalize(join(this.path, 'package.json'))]
         } catch (err) {
             ipcRenderer.invoke("log", { message: `getAsarVersion Error: ${err.message}` , source: "_LP", event: "_LP" })
-            console.warn(err)
+            // console.warn(err)
             this.version = '0.0.0'
         }
     }
@@ -120,8 +120,12 @@ class LocalPackage {
         document.getElementsByTagName("head")[0].appendChild(el)
     }
 
-    handleImport = importPath => {
-        Object.entries(require(normalize(importPath))).forEach(([key, value]) => {
+    handleRequire = importPath => {
+        return require(normalize(importPath))
+    }
+
+    handleImport = (importPath) => {
+        Object.entries(this.handleRequire(importPath)).forEach(([key, value]) => {
             switch (key) {
                 case 'init':
                     ipcRenderer.invoke("debug", { message: `Init detected for ${importPath} initializing...` , source: "LocalPackage", event: "spawn" })
@@ -141,7 +145,14 @@ class LocalPackage {
                         }
                     })
                     break
+                case 'global':
+                case 'window':
+                    console.error(`Could not import ${key} for ${importPath}. Denied`)
+                    break
                 default:
+                    if (global[key] !== undefined) {
+                        console.warn(`Replacing existing global value for ${key} from ${importPath}`)
+                    }
                     global[key] = value
             }
         })
@@ -154,7 +165,7 @@ class LocalPackage {
 
     requirePackage() {
         console.log(`Importing [requirePackage] from ${this.importPath}`)
-        require(this.importPath)
+        require(this.handleRequire(this.importPath))
     }
 
     getInstallerVersion() {

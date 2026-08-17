@@ -99,7 +99,18 @@ class PackageManager {
     }
 
     importPlugins() {
-        this.pluginsPath !== undefined && fs.readdirSync(this.pluginsPath)
+        if (this.pluginsPath === undefined) {
+            return
+        }
+        if (!fs.existsSync(this.pluginsPath)) {
+            try {
+                fs.mkdirSync(this.pluginsPath, {recursive: true})
+            } catch (error) {
+                console.warn(`PackageManager.importPlugins: could not create plugins directory ${this.pluginsPath}`, error)
+                return
+            }
+        }
+        fs.readdirSync(this.pluginsPath)
             .filter(f => f.endsWith('.js') || f.endsWith('.asar'))
             .map(f => ({
                 artifactType: f.endsWith('.js') ? 'js' : 'asar',

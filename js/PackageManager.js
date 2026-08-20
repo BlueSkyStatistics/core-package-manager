@@ -99,7 +99,7 @@ class PackageManager {
     }
 
     importPlugins() {
-        this.pluginsPath !== undefined && fs.readdirSync(this.pluginsPath)
+        this.pluginsPath !== undefined && fs.existsSync(this.pluginsPath) && fs.readdirSync(this.pluginsPath)
             .filter(f => f.endsWith('.js') || f.endsWith('.asar'))
             .map(f => ({
                 artifactType: f.endsWith('.js') ? 'js' : 'asar',

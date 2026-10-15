@@ -27,10 +27,10 @@ const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClie
 
 
 class PackageManager {
-    constructor({sessionStore, configStore, pluginsPath = undefined}) {
+    constructor({sessionStore, configStore, modulesStore, pluginsPath = undefined}) {
         this.sessionStore = sessionStore
         this.configStore = configStore
-        this.modules = this.sessionStore.get("modulesContent")
+        this.modulesStore = modulesStore
         this.pluginsPath = pluginsPath
     }
 
@@ -78,21 +78,22 @@ class PackageManager {
     }
 
 
-    importInit() {
-        this.modules.init?.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
-        )
-    }
+    // importInit() {
+    //     this.modulesStore.get('init', [])?.forEach(i =>
+    //         new LocalPackage(i).importAllFromPackage()
+    //     )
+    // }
 
     importPackages() {
         // To avoid async and be prepared for app launch we import whatever we have
-        this.modules.core.forEach(i =>
+        const core = this.modulesStore.get('core', [])
+        core.forEach(i =>
             new LocalPackage(i).importAllFromPackage()
         )
     }
 
     addExtensions() {
-        const extensions = this.modules.extentions || []
+        const extensions = this.modulesStore.get('extensions', [])
         extensions.forEach(i =>
             new LocalPackage(i).requirePackage()
         )
@@ -215,7 +216,7 @@ class PackageManager {
             source: "_PM",
             event: "updatePackages"
         })
-        for (var module of this.modules.core) {
+        for (var module of this.modulesStore.get('core', [])) {
             module.moduleType = 'core'
             ipcRenderer.invoke("log", {
                 message: "updatePackages:before core-updateOnePackage...",
@@ -229,7 +230,7 @@ class PackageManager {
                 event: "updatePackages"
             })
         }
-        for (const dialog of this.modules.dialogs) {
+        for (const dialog of this.modulesStore.get('dialogs', [])) {
             module.moduleType = 'dialogs'
             ipcRenderer.invoke("log", {
                 message: "updatePackages:before dialogs-updateOnePackage...",
@@ -253,7 +254,6 @@ class PackageManager {
     }
 
     async getPackagesVersions() {
-        // let modules = PackageManager.getModulesMeta()
         const process_package = async (package_item, additional_data = {}) => {
             const {name, version, description} = new LocalPackage(package_item)
             var _remotePackage;
@@ -281,13 +281,13 @@ class PackageManager {
             }
         }
 
-        const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
-        const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
+        const coreModulesVersions = await Promise.all(this.modulesStore.get('core', []).map(async i => await process_package(i, {type: "core"})))
+        const dialogModulesVersions = await Promise.all(this.modulesStore.get('dialogs').map(async i => await process_package(i, {type: "dialogs"})))
         return [...coreModulesVersions, ...dialogModulesVersions]
     }
 
     findModule = (moduleType, moduleName) =>
-        this.modules[moduleType]?.find(
+        this.modulesStore.get(moduleType, [])?.find(
             m => m.name === moduleName
         )
 

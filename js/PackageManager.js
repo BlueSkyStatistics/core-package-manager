@@ -17,7 +17,7 @@ const gt = require('semver').gt
 const LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
 const RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
 const {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
-const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
+// const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
 // }
 
 
@@ -40,10 +40,10 @@ class PackageManager {
             //instead newSendSync is used which seems to hold up well
             // ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
-        this.firebaseClient = undefined
-        if (this.sessionStore.get("firebaseConfig")) {
-            this.firebaseClient = new firebaseClient(this.sessionStore.get("firebaseConfig"), this.sessionStore.get('firebaseBucket'))
-        }
+        // this.firebaseClient = undefined
+        // if (this.sessionStore.get("firebaseConfig")) {
+            // this.firebaseClient = new firebaseClient(this.sessionStore.get("firebaseConfig"), this.sessionStore.get('firebaseBucket'))
+        // }
 
     }
 
@@ -136,7 +136,8 @@ class PackageManager {
         if (this.configStore.get("offline")) {
             return
         }
-        const _remotePackage = new RemotePackage(m, this.firebaseClient)
+        // const _remotePackage = new RemotePackage(m, this.firebaseClient)
+        const _remotePackage = new RemotePackage(m)
         await _remotePackage.getRemoteDetails(versionToUpdate)
         switch (m.update) {
             case 'auto':
@@ -265,7 +266,8 @@ class PackageManager {
                     message: `Checking version of ${package_item.name} ...`,
                     nomain: true
                 })
-                _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+                // _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+                _remotePackage = new RemotePackage(package_item)
                 ipcRenderer.invoke("log", {
                     message: `getPackagesVersions: for ${package_item.name}`,
                     source: "_PM",

@@ -17,7 +17,7 @@ const gt = require('semver').gt
 const LocalPackage = require(path.normalize(__dirname + "/LocalPackage"));
 const RemotePackage = require(path.normalize(__dirname + "/RemotePackage"));
 const {packageUpdateVersionInstalledMessage, updateModule} = require(path.normalize(__dirname + "/handlers"));
-const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
+// const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClient"))
 // }
 
 
@@ -27,10 +27,10 @@ const firebaseClient = require(path.normalize(__dirname + "/clients/firebaseClie
 
 
 class PackageManager {
-    constructor({sessionStore, configStore, pluginsPath = undefined}) {
+    constructor({sessionStore, configStore, modulesStore, pluginsPath = undefined}) {
         this.sessionStore = sessionStore
         this.configStore = configStore
-        this.modules = this.sessionStore.get("modulesContent")
+        this.modulesStore = modulesStore
         this.pluginsPath = pluginsPath
     }
 
@@ -40,10 +40,10 @@ class PackageManager {
             //instead newSendSync is used which seems to hold up well
             // ipcRenderer.sendSync("bsevent", {'event': 'listInstalled'})
         }
-        this.firebaseClient = undefined
-        if (this.sessionStore.get("firebaseConfig")) {
-            this.firebaseClient = new firebaseClient(this.sessionStore.get("firebaseConfig"), this.sessionStore.get('firebaseBucket'))
-        }
+        // this.firebaseClient = undefined
+        // if (this.sessionStore.get("firebaseConfig")) {
+            // this.firebaseClient = new firebaseClient(this.sessionStore.get("firebaseConfig"), this.sessionStore.get('firebaseBucket'))
+        // }
 
     }
 
@@ -78,21 +78,22 @@ class PackageManager {
     }
 
 
-    importInit() {
-        this.modules.init?.forEach(i =>
-            new LocalPackage(i).importAllFromPackage()
-        )
-    }
+    // importInit() {
+    //     this.modulesStore.get('init', [])?.forEach(i =>
+    //         new LocalPackage(i).importAllFromPackage()
+    //     )
+    // }
 
     importPackages() {
         // To avoid async and be prepared for app launch we import whatever we have
-        this.modules.core.forEach(i =>
+        const core = this.modulesStore.get('core', [])
+        core.forEach(i =>
             new LocalPackage(i).importAllFromPackage()
         )
     }
 
     addExtensions() {
-        const extensions = this.modules.extentions || []
+        const extensions = this.modulesStore.get('extensions', [])
         extensions.forEach(i =>
             new LocalPackage(i).requirePackage()
         )
@@ -110,15 +111,15 @@ class PackageManager {
         )
     }
 
-    async updateOnePackage(module, versionToUpdate = undefined) {
+    async updateOnePackage(m, versionToUpdate = undefined) {
         let restartNeeded = false
 
-        let _localPackage = new LocalPackage(module)
+        let _localPackage = new LocalPackage(m)
         if (_localPackage.version === '0.0.0') {
             // We have no local package, so we copy it
             if (_localPackage.copyFromInstaller()) {
                 restartNeeded = true
-                _localPackage = new LocalPackage(module)
+                _localPackage = new LocalPackage(m)
             }
         }
         if (_localPackage.sourceType === 'local') {
@@ -135,15 +136,16 @@ class PackageManager {
         if (this.configStore.get("offline")) {
             return
         }
-        const _remotePackage = new RemotePackage(module, this.firebaseClient)
+        // const _remotePackage = new RemotePackage(m, this.firebaseClient)
+        const _remotePackage = new RemotePackage(m)
         await _remotePackage.getRemoteDetails(versionToUpdate)
-        switch (module.update) {
+        switch (m.update) {
             case 'auto':
                 if (gt(_remotePackage.version, _localPackage.version)) {
                     restartNeeded = restartNeeded || await _remotePackage.installPackage()
                 } else {
                     ipcRenderer.invoke("log", {
-                        message: `Remote version of ${module.name} is not greater than the local (when update:auto)`,
+                        message: `Remote version of ${m.name} is not greater than the local (when update:auto)`,
                         source: "_PM",
                         event: "updateOnePackages"
                     })
@@ -153,11 +155,11 @@ class PackageManager {
                 if (versionToUpdate !== undefined) {
                     restartNeeded = restartNeeded || await _remotePackage.installPackage()
                 }
-                ipcRenderer.invoke('core-module-update-available', module)
+                ipcRenderer.invoke('core-module-update-available', m)
                 break
             default:
-                ipcRenderer.invoke("log", {message: `local ${module.name} `, source: "_PM", event: "updateOnePackages"})
-                console.warn('Update mode unknown: ', module.update, "module name:", module.name)
+                ipcRenderer.invoke("log", {message: `local ${m.name} `, source: "_PM", event: "updateOnePackages"})
+                console.warn('Update mode unknown: ', m.update, "module name:", m.name)
                 break
         }
 
@@ -166,7 +168,7 @@ class PackageManager {
             this.sessionStore.set("restartNeeded", true)
         }
         ipcRenderer.invoke("log", {
-            message: `restart-needed : ${restartNeeded} for ${module.name}`,
+            message: `restart-needed : ${restartNeeded} for ${m.name}`,
             source: "_PM",
             event: "updateOnePackages"
         })
@@ -215,28 +217,28 @@ class PackageManager {
             source: "_PM",
             event: "updatePackages"
         })
-        for (var module of this.modules.core) {
-            module.moduleType = 'core'
+        for (const m of this.modulesStore.get('core', [])) {
+            m.moduleType = 'core'
             ipcRenderer.invoke("log", {
                 message: "updatePackages:before core-updateOnePackage...",
                 source: "_PM",
                 event: "updatePackages"
             })
-            await this.updateOnePackage(module)
+            await this.updateOnePackage(m)
             ipcRenderer.invoke("log", {
                 message: "updatePackages.:after core-updateOnePackage...",
                 source: "_PM",
                 event: "updatePackages"
             })
         }
-        for (const dialog of this.modules.dialogs) {
-            module.moduleType = 'dialogs'
+        for (const d of this.modulesStore.get('dialogs', [])) {
+            d.moduleType = 'dialogs'
             ipcRenderer.invoke("log", {
                 message: "updatePackages:before dialogs-updateOnePackage...",
                 source: "_PM",
                 event: "updatePackages"
             })
-            await this.updateOnePackage(dialog)
+            await this.updateOnePackage(d)
             ipcRenderer.invoke("log", {
                 message: "updatePackages:after dialogs-updateOnePackage...",
                 source: "_PM",
@@ -253,7 +255,6 @@ class PackageManager {
     }
 
     async getPackagesVersions() {
-        // let modules = PackageManager.getModulesMeta()
         const process_package = async (package_item, additional_data = {}) => {
             const {name, version, description} = new LocalPackage(package_item)
             var _remotePackage;
@@ -265,7 +266,8 @@ class PackageManager {
                     message: `Checking version of ${package_item.name} ...`,
                     nomain: true
                 })
-                _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+                // _remotePackage = new RemotePackage(package_item, this.firebaseClient)
+                _remotePackage = new RemotePackage(package_item)
                 ipcRenderer.invoke("log", {
                     message: `getPackagesVersions: for ${package_item.name}`,
                     source: "_PM",
@@ -281,13 +283,13 @@ class PackageManager {
             }
         }
 
-        const coreModulesVersions = await Promise.all(this.modules.core.map(async i => await process_package(i, {type: "core"})))
-        const dialogModulesVersions = await Promise.all(this.modules.dialogs.map(async i => await process_package(i, {type: "dialogs"})))
+        const coreModulesVersions = await Promise.all(this.modulesStore.get('core', []).map(async i => await process_package(i, {type: "core"})))
+        const dialogModulesVersions = await Promise.all(this.modulesStore.get('dialogs', []).map(async i => await process_package(i, {type: "dialogs"})))
         return [...coreModulesVersions, ...dialogModulesVersions]
     }
 
     findModule = (moduleType, moduleName) =>
-        this.modules[moduleType]?.find(
+        this.modulesStore.get(moduleType, [])?.find(
             m => m.name === moduleName
         )
 
@@ -297,8 +299,8 @@ class PackageManager {
         if (selectedVersion === currentVersion) {
             global.BSEvent && new global.BSEvent('notify').emit(packageUpdateVersionInstalledMessage)
         } else {
-            const module = this.findModule(moduleType, moduleName)
-            await updateModule(this, module, selectedVersion)
+            const m = this.findModule(moduleType, moduleName)
+            await updateModule(this, m, selectedVersion)
         }
     }
 }

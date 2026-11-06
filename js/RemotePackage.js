@@ -155,7 +155,7 @@ class RemotePackage {
     firebaseReleaseVersion = async versionToUpdate => {
         ipcRenderer.invoke("log", { message: "firebaseReleaseVersion 1:" , source: "_RP", event: "firebaseReleaseVersion" })
         try {
-            var data = await this.firebaseClient.getPackageVersions(this.remotePath)
+            var data = await this.firebaseClient?.getPackageVersions(this.remotePath) || []
             this.versions = data.map(i => ({
                 [i.version]: i
             }))
@@ -210,7 +210,7 @@ class RemotePackage {
         const asarPath = join(formattedPath, formattedName)
         // console.log(fullPath)
         try {
-            await this.firebaseClient.downloadFile(fullPath, asarPath)
+            await this.firebaseClient?.downloadFile(fullPath, asarPath)
             const pkg = require(normalize(join(asarPath, 'package.json')))
             return this.checkVersionAndUpdateFile(pkg, asarPath)
         } catch (e) {

@@ -6,8 +6,8 @@
 
 const {Render} = require('squirrelly')
 const {join, normalize, dirname} = require('path')
-const {unlinkSync} = require('original-fs') // removePackage (not called anywhere)
-const fs = require("fs");
+// BlueSkyJS Phase 2: files are read through the main process (the window has no fs once isolated)
+const fs = global.requireFromRoot("assets/js/utils/fileBridge");
 const {sessionStore} = global
 
 
@@ -201,14 +201,6 @@ class LocalPackage {
         return false
     }
 
-    removePackage() {
-        try {
-            unlinkSync(this.path)
-        } catch(err) {
-            ipcRenderer.invoke("log", { message: `Unlink Error for local module: ${err.message}` , source: "_LP", event: "_LP" })
-            console.log(`Could not remove file ${this.path}`)
-        }
-    }
 }
 
 module.exports = LocalPackage

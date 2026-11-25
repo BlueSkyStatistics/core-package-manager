@@ -5,7 +5,8 @@
  */
 
 const path = require('path')
-const fs = require("fs");
+// BlueSkyJS Phase 2: files are read through the main process (the window has no fs once isolated)
+const fs = global.requireFromRoot("assets/js/utils/fileBridge");
 const gt = require('semver').gt
 
 // try {

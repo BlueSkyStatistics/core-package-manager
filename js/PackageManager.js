@@ -117,14 +117,14 @@ class PackageManager {
         let _localPackage = new LocalPackage(m)
         if (_localPackage.version === '0.0.0') {
             // We have no local package, so we copy it
-            if (_localPackage.copyFromInstaller()) {
+            if (await _localPackage.copyFromInstaller()) {
                 restartNeeded = true
                 _localPackage = new LocalPackage(m)
             }
         }
         if (_localPackage.sourceType === 'local') {
             if (gt(_localPackage.getInstallerVersion(), _localPackage.version)) {
-                restartNeeded = _localPackage.copyFromInstaller()
+                restartNeeded = await _localPackage.copyFromInstaller()
             }
             if (!this.sessionStore.get("restartNeeded") && restartNeeded) {
                 this.sessionStore.delete("restartNeeded")

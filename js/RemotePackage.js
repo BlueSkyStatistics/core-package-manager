@@ -4,10 +4,8 @@
   * allowed without the prior written permission from BlueSky Statistics, LLC.
  */
 
-const axios = require('axios')
 const {maxSatisfying: semverMaxSatisfying, lte: semverLte, satisfies: satisfyVer} = require('semver')
 const {Render} = require('squirrelly')
-const {writeFileSync, copyFileSync, unlink} = require('fs')
 const {normalize, join, parse} = require("path")
 const {sessionStore} = global
 
@@ -50,7 +48,7 @@ class RemotePackage {
         this.versions = []
     }
 
-    checkVersionAndUpdateFile = (pkg, filepath) => {
+    checkVersionAndUpdateFile = async (pkg, filepath) => {
         const installedBSkyVersion = sessionStore.get("installedPackages").BlueSky
         sessionStore.set("BSKYver",installedBSkyVersion)
         console.log("Install BSky pkg ver:", installedBSkyVersion)
@@ -71,10 +69,15 @@ class RemotePackage {
                 errors.push(`required R Package ${Object.keys(item)[0]} version: ${Object.values(item)[0]} but current version is ${sessionStore.get("installedPackages")[item[0]]}`)
             }
         })
+        // The main process downloaded the package next to its place; it puts it in place, or deletes it when
+        // the checks above failed (BlueSkyJS Phase 2.3)
+        const request = {name: this.name, moduleType: this.moduleType, version: this.version}
+        let applied = false
         if (errors.length === 0) {
             ipcRenderer.invoke('status-message', {"message": `Applying updates for ${this.name}...`})
             try{
-                copyFileSync(normalize(filepath), this.path)
+                await ipcRenderer.invoke('packages:apply', request)
+                applied = true
                 ipcRenderer.invoke('status-message', {"message": `${this.name} Updated...`})
                 ipcRenderer.invoke("log", { message: `Updates applied for ${this.name}...` , source: "_RP", event: "_RP" })
             } catch (err){
@@ -87,70 +90,20 @@ class RemotePackage {
             // ipcRenderer.invoke("log", { message: `No updates required for ${this.name}...` , source: "_RP", event: "_RP" })
             ipcRenderer.invoke('bsevent', {'event': 'versionUpdateError', 'data': errors.join('\n')})
         }
-        // deleteFile(filepath)
-        // delete require.cache[path.join(filepath, 'package.json')]
-        try{
-            if(require.cache[normalize(join(filepath, 'package.json'))]){
-                ipcRenderer.invoke("log", { message: `Deleting require.cache for ${this.name}` , source: "_RP", event: "_RP" })
-                delete require.cache[normalize(join(filepath, 'package.json'))]
+        if (!applied) {
+            try {
+                await ipcRenderer.invoke('packages:discard', request)
+            } catch (err) {
+                ipcRenderer.invoke("log", { message: `discarding the download failed: ${err.message}` , source: "_RP", event: "_RP" })
             }
-            else {
-                ipcRenderer.invoke("log", { message: `require.cache not found for ${this.name}` , source: "_RP", event: "_RP" })
-            }
-
-            unlink(normalize(filepath), er => {
-                if(er){
-                    ipcRenderer.invoke("log", { message: `unlink error for ${this.name}` , source: "_RP", event: "_RP" })
-                    ipcRenderer.invoke("log", { message: `unlink error: ${er.message}` , source: "_RP", event: "_RP" })
-                }
-                else {
-                    ipcRenderer.invoke("log", { message: `unlinked ${this.name}` , source: "_RP", event: "_RP" })
-                }
-            });
-            ipcRenderer.invoke("log", { message: `required cache cleaned and unlinking done for ${this.name}...` , source: "_RP", event: "_RP" })            
-        } catch (err) {
-            ipcRenderer.invoke("log", { message: `req-cache cleanup (or unlink) error: ${err.message}` , source: "_RP", event: "_RP" })
         }
 
         // update check finished (does not matter applied or not, but check is done)
         ipcRenderer.invoke('status-message', {"message": `Update check finished for ${this.name}...`})
         ipcRenderer.invoke("log", { message: `Update check finished for ${this.name}...` , source: "_RP", event: "_RP" })
 
-        return errors.length === 0
+        return applied
     }
-
-    fileDownloadAndSave = async (fileUrl, filePath) => {
-        console.log("Trying to start the download process for..",filePath)
-        ipcRenderer.invoke("log", { message: `fileDownloadAndSave:Trying to download ...${this.name}` , source: "_RP", event: "_RP" })
-        ipcRenderer.invoke('status-message', {"message": `Downloading ${this.name}...`})
-        return axios.get(fileUrl, {responseType: "arraybuffer"}).then((response) => {
-            writeFileSync(normalize(filePath), Buffer.from(response.data))
-        }) .catch(error => {
-            ipcRenderer.invoke("log", { message: `Error downloading ${this.name}...` , source: "_RP", event: "_RP" })
-            
-            // Handle error
-            if (error.response) {
-              // The request was made and the server responded with a status code
-              ipcRenderer.invoke("log", { message: `Resp. status for  ${this.name} : ${error.response.status}` , source: "_RP", event: "_RP" })
-              console.error('Response status:', error.response.status);
-              console.error('Response data:', error.response.data);
-            } else if (error.request) {
-              // The request was made but no response was received
-              ipcRenderer.invoke("log", { message: `No response received for  ${this.name}` , source: "_RP", event: "_RP" })
-              console.error('No response received:', error.request);
-            } else {
-              // Something happened in setting up the request that triggered an error
-              ipcRenderer.invoke("log", { message: `Error: ${error.message}` , source: "_RP", event: "_RP" })
-              console.error('Error:', error.message);
-            }
-            console.error('Error config:', error.config);
-
-            console.log(file_url)
-            console.log(file_path)
-            console.log(err);
-          });
-    }
-
 
     firebaseReleaseVersion = async versionToUpdate => {
         ipcRenderer.invoke("log", { message: "firebaseReleaseVersion 1:" , source: "_RP", event: "firebaseReleaseVersion" })
@@ -221,21 +174,19 @@ class RemotePackage {
     }
 
 
+    // The main process downloads the release (it works out the URL from the modules list), checks its
+    // SHA-256 against the one GitHub publishes and writes it next to the package (BlueSkyJS Phase 2.3)
     gitReleaseAsarInstall = async () => {
-        const fileUrl = this.details.assets[0].browser_download_url
-        const asarPath = `${this.path}_${this.version}.asar`
         try {
             ipcRenderer.invoke("log", { message: `gitReleaseAsarInstall: Downloading ${this.name} ver:${this.version}` , source: "_RP", event: "_RP" })
-            await this.fileDownloadAndSave(fileUrl, asarPath)
-            ipcRenderer.invoke("log", { message: `gitReleaseAsarInstall: Downloaded ${this.name} ver:${this.version}` , source: "_RP", event: "_RP" })
-            const pkg = require(normalize(join(asarPath, 'package.json')))
-            return this.checkVersionAndUpdateFile(pkg, asarPath)
+            ipcRenderer.invoke("status-message", {"message": `Downloading ${this.name}...`})
+            const {asarPath, pkg, verified, warning} = await ipcRenderer.invoke("packages:download", {name: this.name, moduleType: this.moduleType, version: this.version})
+            ipcRenderer.invoke("log", { message: `gitReleaseAsarInstall: Downloaded ${this.name} ver:${this.version} (${verified ? "checksum verified" : warning || "no checksum"})` , source: "_RP", event: "_RP" })
+            return await this.checkVersionAndUpdateFile(pkg, asarPath)
         } catch (e) {
-            ipcRenderer.invoke('status-message', {"message": `No updates for ${this.name}`})
+            ipcRenderer.invoke("status-message", {"message": `No updates for ${this.name}`})
             ipcRenderer.invoke("log", { message: `gitReleaseAsarInstall: Error in asar download OR checkversion for ${this.name} ver:${this.version}` , source: "_RP", event: "_RP" })
             ipcRenderer.invoke("log", { message: `gitReleaseAsarInstall: Error: ${e.message}` , source: "_RP", event: "_RP" })
-
-            console.warn({fileUrl, asarPath})
             console.warn(e)
         }
         return false

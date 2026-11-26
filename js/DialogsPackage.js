@@ -39,14 +39,14 @@ class DialogsPackage extends LocalPackage {
         const modalsPath = normalize(dirname(pathAddon));
         ipcRenderer.invoke("log", { message: `getnav addonpath: ${pathAddon}` , source: "_DP", event: "spawn" })
         let packageNavList = []
-        if (packageNav.buttons !== undefined) {
+        if (packageNav?.buttons !== undefined) {
             packageNavList.push(packageNav)
         } else {
             packageNavList = packageNav
         }
         // store.set("ResumeStatus", packageNavList)
         // var navList = []
-        const navList = packageNavList.map(p => {
+        const navList = packageNavList?.map(p => {
             p.buttons = p.buttons.map(b => {
                 if (typeof b === 'object') {
                     if (b.children === undefined) {

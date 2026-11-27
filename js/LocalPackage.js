@@ -6,8 +6,8 @@
 
 const {Render} = require('squirrelly')
 const {join, normalize, dirname} = require('path')
-const {existsSync, unlinkSync, copyFileSync} = require('original-fs')
-const fs = require("fs");
+// BlueSkyJS Phase 2: files are read through the main process (the window has no fs once isolated)
+const fs = global.requireFromRoot("assets/js/utils/fileBridge");
 const {sessionStore} = global
 
 
@@ -18,11 +18,12 @@ class LocalPackage {
     constructor({
                     name, path, storage,
                     artifactType, sourceType,
-                    remote, update, removable,
+                    remote, update, removable, moduleType,
     }) {
         this.userDataPath = sessionStore.get("userData")
         this.appRoot = sessionStore.get("appRoot")
         this.name = name
+        this.moduleType = moduleType
         this._path = path
         this.path = normalize(Render(this._path, {
             locals: this.userDataPath,
@@ -183,11 +184,13 @@ class LocalPackage {
         }
     }
 
-    copyFromInstaller() {
+    // The main process copies the installer's package into user data (BlueSkyJS Phase 2.3: the window has no
+    // fs, and main decides where package files may go)
+    async copyFromInstaller() {
         try {
-            if (existsSync(this.installerPath)) {
-                ipcRenderer.invoke("log", { message: `Updating local from installpath for ${this.name}` , source: "_LP", event: "_LP" })
-                copyFileSync(this.installerPath, this.path)
+            const {copied} = await ipcRenderer.invoke('packages:copy-from-installer', {name: this.name, moduleType: this.moduleType})
+            if (copied) {
+                ipcRenderer.invoke("log", { message: `Updated local from installpath for ${this.name}` , source: "_LP", event: "_LP" })
                 return true
             }
         } catch (err) {
@@ -198,14 +201,6 @@ class LocalPackage {
         return false
     }
 
-    removePackage() {
-        try {
-            unlinkSync(this.path)
-        } catch(err) {
-            ipcRenderer.invoke("log", { message: `Unlink Error for local module: ${err.message}` , source: "_LP", event: "_LP" })
-            console.log(`Could not remove file ${this.path}`)
-        }
-    }
 }
 
 module.exports = LocalPackage
